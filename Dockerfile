@@ -1,7 +1,7 @@
 FROM php:8.2.0-cli
 
 RUN apt-get update \
-    && apt-get install -y libxml2-dev wget unzip libaio1 libnsl-dev libfreetype6-dev libjpeg-dev libpng-dev libonig-dev libzip-dev
+    && apt-get install -y git curl libxml2-dev wget unzip libaio1 libnsl-dev libfreetype6-dev libjpeg-dev libpng-dev libonig-dev libzip-dev
 
 # Copia los ZIPs de Oracle Instant Client al contenedor
 COPY oracle/instantclient-basic-linux.x64-12.1.0.2.0.zip /opt/oracle/
