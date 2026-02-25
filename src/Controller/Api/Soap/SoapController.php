@@ -3,6 +3,7 @@
 namespace App\Controller\Api\Soap;
 
 use App\Application\Individual\ConsultaIndividualService;
+use App\Application\Individual\PagoIndividualService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -11,8 +12,11 @@ use Symfony\Component\Routing\Attribute\Route;
 class SoapController extends AbstractController
 {
     #[Route('/api/soap', methods: ['POST'])]
-    public function handle(Request $request, ConsultaIndividualService $service): Response
-    {
+    public function handle(
+        Request $request, 
+        ConsultaIndividualService $consultaService,
+        PagoIndividualService $pagoService
+    ): Response{
         $raw = $request->getContent() ?? '';
         $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw); // quitar BOM si existe
         $raw = trim($raw);
@@ -39,51 +43,136 @@ class SoapController extends AbstractController
         $xpath->registerNamespace('soap12', 'http://www.w3.org/2003/05/soap-envelope');
 
         // Tomamos el primer hijo dentro del Body (debería ser <consulta>)
-        $consulta = $xpath->query('//soapenv:Body/*[1]')->item(0)
+        $opNode = $xpath->query('//soapenv:Body/*[1]')->item(0)
             ?? $xpath->query('//soap12:Body/*[1]')->item(0);
 
-        if (!$consulta) {
-            return new Response(
+        if (!$opNode instanceof \DOMElement) {
+            return $this->soapWrap(
                 '<ERROR><COD>999</COD><MENSAJE>SOAP BODY NO ENCONTRADO</MENSAJE></ERROR>',
-                400,
-                ['Content-Type' => 'text/xml; charset=UTF-8']
+                400
             );
         }
 
-        $tipoPlaca = trim($xpath->evaluate('string(./Tipo_Placa)', $consulta));
-        $placa     = trim($xpath->evaluate('string(./Placa)', $consulta));
-        $usuario   = trim($xpath->evaluate('string(./Usuario)', $consulta));
-        $pass      = trim($xpath->evaluate('string(./Pass)', $consulta));
+        $opName = strtolower($opNode->localName ?? $opNode->nodeName);
 
-        $result = $service->execute($tipoPlaca, $placa, $usuario, $pass);
+        // =========================
+        // (1) Consulta
+        // =========================
+        if ($opName === 'consulta') {
+            $tipoPlaca = trim($xpath->evaluate('string(./Tipo_Placa)', $opNode));
+            $placa     = trim($xpath->evaluate('string(./Placa)', $opNode));
+            $usuario   = trim($xpath->evaluate('string(./Usuario)', $opNode));
+            $pass      = trim($xpath->evaluate('string(./Pass)', $opNode));
 
-        if (isset($result['error'])) {
-            $out = '<ERROR>'
-                . '<COD>' . htmlspecialchars((string)$result['error']['cod']) . '</COD>'
-                . '<MENSAJE>' . htmlspecialchars((string)$result['error']['mensaje']) . '</MENSAJE>'
-                . '</ERROR>';
-        } else {
-            $out = '<REMISIONES>';
-            foreach (($result['remisiones'] ?? []) as $r) {
-                $out .= '<REMISION>'
-                    . '<SERIE>' . htmlspecialchars((string)($r['serie'] ?? '')) . '</SERIE>'
-                    . '<NUMERO>' . htmlspecialchars((string)($r['numero'] ?? '')) . '</NUMERO>'
-                    . '<NOMBRE>' . htmlspecialchars((string)($r['nombre'] ?? '')) . '</NOMBRE>'
-                    . '<FECHA>' . htmlspecialchars((string)($r['fecha'] ?? '')) . '</FECHA>'
-                    . '<TOTAL>' . htmlspecialchars((string)($r['total'] ?? '')) . '</TOTAL>'
-                    . '</REMISION>';
+            $result = $consultaService->execute($tipoPlaca, $placa, $usuario, $pass);
+
+            if (isset($result['error'])) {
+                $out = '<ERROR>'
+                    . '<COD>' . htmlspecialchars((string)$result['error']['cod']) . '</COD>'
+                    . '<MENSAJE>' . htmlspecialchars((string)$result['error']['mensaje']) . '</MENSAJE>'
+                    . '</ERROR>';
+            } else {
+                $out = '<REMISIONES>';
+                foreach (($result['remisiones'] ?? []) as $r) {
+                    $out .= '<REMISION>'
+                        . '<SERIE>' . htmlspecialchars((string)($r['serie'] ?? '')) . '</SERIE>'
+                        . '<NUMERO>' . htmlspecialchars((string)($r['numero'] ?? '')) . '</NUMERO>'
+                        . '<NOMBRE>' . htmlspecialchars((string)($r['nombre'] ?? '')) . '</NOMBRE>'
+                        . '<FECHA>' . htmlspecialchars((string)($r['fecha'] ?? '')) . '</FECHA>'
+                        . '<TOTAL>' . htmlspecialchars((string)($r['total'] ?? '')) . '</TOTAL>'
+                        . '</REMISION>';
+                }
+                $out .= '</REMISIONES>';
             }
-            $out .= '</REMISIONES>';
+
+            return $this->soapWrap($out, 200);
+        } 
+
+        // =========================
+        // 2) PAGO
+        // =========================
+        if ($opName === 'pago') {
+            // Usuario / Pass al mismo nivel que Remisiones (según lo que definamos)
+            $usuario = trim($xpath->evaluate('string(./Usuario)', $opNode));
+            $pass    = trim($xpath->evaluate('string(./Pass)', $opNode));
+
+            $remisiones = [];
+
+            // Caso 1: <Remisiones><Remision>...</Remision></Remisiones>
+            $remNodes = $xpath->query('./Remisiones/Remision', $opNode);
+            if ($remNodes && $remNodes->length > 0) {
+                foreach ($remNodes as $rNode) {
+                    if (!$rNode instanceof \DOMElement) continue;
+
+                    $remisiones[] = [
+                        'serie'          => trim($xpath->evaluate('string(./serie)', $rNode)),
+                        'remision'       => trim($xpath->evaluate('string(./remision)', $rNode)),
+                        'total'          => trim($xpath->evaluate('string(./total)', $rNode)),
+                        'no_referencia'  => trim($xpath->evaluate('string(./no_referencia)', $rNode)),
+                        'no_autorizacion'=> trim($xpath->evaluate('string(./no_autorizacion)', $rNode)),
+                    ];
+                }
+            } else {
+                // Caso 2 fallback: <Remision> directo dentro de <pago>
+                $remNodes2 = $xpath->query('./Remision', $opNode);
+                if ($remNodes2 && $remNodes2->length > 0) {
+                    foreach ($remNodes2 as $rNode) {
+                        if (!$rNode instanceof \DOMElement) continue;
+
+                        $remisiones[] = [
+                            'serie'          => trim($xpath->evaluate('string(./serie)', $rNode)),
+                            'remision'       => trim($xpath->evaluate('string(./remision)', $rNode)),
+                            'total'          => trim($xpath->evaluate('string(./total)', $rNode)),
+                            'no_referencia'  => trim($xpath->evaluate('string(./no_referencia)', $rNode)),
+                            'no_autorizacion'=> trim($xpath->evaluate('string(./no_autorizacion)', $rNode)),
+                        ];
+                    }
+                }
+            }
+
+            $result = $pagoService->execute($remisiones, $usuario, $pass);
+
+            if (isset($result['error'])) {
+                $out = '<ERROR>'
+                    . '<COD>' . htmlspecialchars((string)$result['error']['cod']) . '</COD>'
+                    . '<MENSAJE>' . htmlspecialchars((string)$result['error']['mensaje']) . '</MENSAJE>'
+                    . '</ERROR>';
+
+                return $this->soapWrap($out, 200);
+            }
+
+            // Tu service devuelve: ['remision' => ['doc','cod','mensaje']]
+            $doc     = (string)($result['remision']['doc'] ?? '');
+            $cod     = (string)($result['remision']['cod'] ?? '');
+            $mensaje = (string)($result['remision']['mensaje'] ?? '');
+
+            $out = '<REMISION>'
+                . '<DOC>' . htmlspecialchars($doc) . '</DOC>'
+                . '<COD>' . htmlspecialchars($cod) . '</COD>'
+                . '<MENSAJE>' . htmlspecialchars($mensaje) . '</MENSAJE>'
+                . '</REMISION>';
+
+            return $this->soapWrap($out, 200);
         }
 
+        // Operación no soportada
+        return $this->soapWrap(
+            '<ERROR><COD>999</COD><MENSAJE>OPERACION NO SOPORTADA</MENSAJE></ERROR>',
+            400
+        );
+    }
+
+    private function soapWrap(string $innerXml, int $status): Response
+    {
         $responseXml =
             '<?xml version="1.0" encoding="UTF-8"?>' .
             '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">' .
-                '<soapenv:Body>' . $out . '</soapenv:Body>' .
+                '<soapenv:Body>' . $innerXml . '</soapenv:Body>' .
             '</soapenv:Envelope>';
 
-        return new Response($responseXml, 200, [
+        return new Response($responseXml, $status, [
             'Content-Type' => 'text/xml; charset=UTF-8'
         ]);
     }
+
 }
