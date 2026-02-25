@@ -3,11 +3,12 @@
 namespace App\Controller\Api\Rest;
 
 use App\Application\Individual\ConsultaIndividualService;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
-class IndividualController
+class IndividualController extends AbstractController
 {
     #[Route('/api/rest/individual/consulta', methods: ['POST'])]
     public function consulta(Request $request, ConsultaIndividualService $service): JsonResponse
@@ -21,6 +22,6 @@ class IndividualController
             (string) ($data['pass'] ?? '')
         );
 
-        return new JsonResponse($result);
+        return $this->json($result);
     }
 }
