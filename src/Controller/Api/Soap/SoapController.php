@@ -5,6 +5,7 @@ namespace App\Controller\Api\Soap;
 use App\Application\Individual\ConsultaIndividualService;
 use App\Application\Individual\PagoIndividualService;
 use App\Application\Individual\ReversionIndividualService;
+use App\Application\Individual\TotalConsultaService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,7 +18,8 @@ class SoapController extends AbstractController
         Request $request, 
         ConsultaIndividualService $consultaService,
         PagoIndividualService $pagoService,
-        ReversionIndividualService $ReversionService
+        ReversionIndividualService $ReversionService,
+        TotalConsultaService $TotalConsultaService
     ): Response{
         $raw = $request->getContent() ?? '';
         $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw); // quitar BOM si existe
@@ -199,6 +201,41 @@ class SoapController extends AbstractController
                 . '<COD>' . htmlspecialchars($cod) . '</COD>'
                 . '<MENSAJE>' . htmlspecialchars($mensaje) . '</MENSAJE>'
                 . '</REVERSION>';
+
+            return $this->soapWrap($out, 200);
+        }
+
+        // =========================
+        // (4) TOTAL
+        // =========================
+        if ($opName === 'total') {
+            $tipoPlaca = trim($xpath->evaluate('string(./Tipo_Placa)', $opNode));
+            $placa     = trim($xpath->evaluate('string(./Placa)', $opNode));
+            $usuario   = trim($xpath->evaluate('string(./Usuario)', $opNode));
+            $clave     = trim($xpath->evaluate('string(./Clave)', $opNode));
+
+            $result = $TotalConsultaService->execute($tipoPlaca, $placa, $usuario, $clave);
+
+            if (isset($result['error'])) {
+                $out = '<ERROR>'
+                    . '<COD>' . htmlspecialchars((string) $result['error']['cod']) . '</COD>'
+                    . '<MENSAJE>' . htmlspecialchars((string) $result['error']['mensaje']) . '</MENSAJE>'
+                    . '</ERROR>';
+
+                return $this->soapWrap($out, 200);
+            }
+
+            $doc = (string) ($result['total']['doc'] ?? '');
+            $totalVenta = (string) ($result['total']['total_venta'] ?? '');
+            $cod = (string) ($result['total']['cod'] ?? '');
+            $mensaje = (string) ($result['total']['mensaje'] ?? '');
+
+            $out = '<TOTAL>'
+                . '<DOC>' . htmlspecialchars($doc) . '</DOC>'
+                . '<TOTAL_VENTA>' . htmlspecialchars($totalVenta) . '</TOTAL_VENTA>'
+                . '<COD>' . htmlspecialchars($cod) . '</COD>'
+                . '<MENSAJE>' . htmlspecialchars($mensaje) . '</MENSAJE>'
+                . '</TOTAL>';
 
             return $this->soapWrap($out, 200);
         }
