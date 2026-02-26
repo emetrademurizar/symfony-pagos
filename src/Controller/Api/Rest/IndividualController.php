@@ -6,6 +6,7 @@ use App\Application\Individual\ConsultaIndividualService;
 use App\Application\Individual\PagoIndividualService;
 use App\Application\Individual\ReversionIndividualService;
 use App\Application\Individual\TotalConsultaService;
+use App\Application\Individual\TotalPagoService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -72,6 +73,23 @@ class IndividualController extends AbstractController
 
         // Llamar al servicio de total consulta
         $result = $service->execute($tipoPlaca, $placa, $usuario, $clave);
+
+        // Devolver la respuesta
+        return new JsonResponse($result, isset($result['error']) ? 400 : 200);
+    }
+
+    #[Route('/api/rest/individual/total-pago', methods: ['POST'])]
+    public function totalPago(Request $request, TotalPagoService $service): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true) ?? [];
+
+        // Obtener los parámetros desde el body
+        $remisiones = is_array($data['remisiones'] ?? null) ? $data['remisiones'] : [];
+        $usuario    = (string)($data['usuario'] ?? '');
+        $pass       = (string)($data['pass'] ?? '');
+
+        // Llamar al servicio de total pago
+        $result = $service->execute($remisiones, $usuario, $pass);
 
         // Devolver la respuesta
         return new JsonResponse($result, isset($result['error']) ? 400 : 200);
