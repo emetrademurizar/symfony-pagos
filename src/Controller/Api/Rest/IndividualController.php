@@ -4,6 +4,7 @@ namespace App\Controller\Api\Rest;
 
 use App\Application\Individual\ConsultaIndividualService;
 use App\Application\Individual\PagoIndividualService;
+use App\Application\Individual\ReversionIndividualService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -37,6 +38,23 @@ class IndividualController extends AbstractController
 
         $result = $service->execute($remisiones, $usuario, $pass);
 
+        return new JsonResponse($result, isset($result['error']) ? 400 : 200);
+    }
+
+    #[Route('/api/rest/individual/reversion', methods: ['POST'])]
+    public function reversion(Request $request, ReversionIndividualService $service): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true) ?? [];
+
+        // Obtención de datos desde el body
+        $remisiones = is_array($data['remisiones'] ?? null) ? $data['remisiones'] : [];
+        $usuario    = (string)($data['usuario'] ?? '');
+        $pass       = (string)($data['pass'] ?? '');
+
+        // Llamar al servicio de reversión
+        $result = $service->execute($remisiones, $usuario, $pass);
+
+        // Enviar el resultado, dependiendo de si hubo error o no
         return new JsonResponse($result, isset($result['error']) ? 400 : 200);
     }
 }
