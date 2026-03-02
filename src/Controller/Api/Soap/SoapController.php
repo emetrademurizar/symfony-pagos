@@ -7,6 +7,7 @@ use App\Application\Individual\PagoIndividualService;
 use App\Application\Individual\ReversionIndividualService;
 use App\Application\Individual\TotalConsultaService;
 use App\Application\Individual\TotalPagoService;
+use App\Application\Individual\TotalReversionService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -21,7 +22,8 @@ class SoapController extends AbstractController
         PagoIndividualService $pagoService,
         ReversionIndividualService $ReversionService,
         TotalConsultaService $TotalConsultaService,
-        TotalPagoService $TotalPagoService
+        TotalPagoService $TotalPagoService,
+        TotalReversionService $TotalReversionService
     ): Response{
         $raw = $request->getContent() ?? '';
         $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw); // quitar BOM si existe
@@ -208,7 +210,7 @@ class SoapController extends AbstractController
         }
 
         // =========================
-        // (4) TOTAL
+        // (4) TOTAL consuta
         // =========================
         if ($opName === 'total') {
             $tipoPlaca = trim($xpath->evaluate('string(./Tipo_Placa)', $opNode));
@@ -248,6 +250,7 @@ class SoapController extends AbstractController
         if ($opName === 'totalpago') {
             $usuario = trim($xpath->evaluate('string(./Usuario)', $opNode));
             $pass    = trim($xpath->evaluate('string(./Pass)', $opNode));
+
             $remisiones = [];
             $remNodes = $xpath->query('./Remisiones/Remision', $opNode);
             foreach ($remNodes as $rNode) {
@@ -260,8 +263,61 @@ class SoapController extends AbstractController
                     'no_autorizacion'=> trim($xpath->evaluate('string(./no_autorizacion)', $rNode)),
                 ];
             }
-            
+
             $result = $TotalPagoService->execute($remisiones, $usuario, $pass);
+
+            if (isset($result['error'])) {
+                $out = '<ERROR>'
+                    . '<COD>' . htmlspecialchars((string)$result['error']['cod']) . '</COD>'
+                    . '<MENSAJE>' . htmlspecialchars((string)$result['error']['mensaje']) . '</MENSAJE>'
+                    . '</ERROR>';
+
+                return $this->soapWrap($out, 200);
+            }
+
+            // Respuesta esperada
+            $doc = (string)($result['total_pago']['doc'] ?? '');
+            $cod = (string)($result['total_pago']['cod'] ?? '');
+            $mensaje = (string)($result['total_pago']['mensaje'] ?? '');
+            $total = (string)($result['total_pago']['total'] ?? '');
+
+            $out = '<TOTALPAGO>'
+                . '<DOC>' . htmlspecialchars($doc) . '</DOC>'
+                . '<COD>' . htmlspecialchars($cod) . '</COD>'
+                . '<MENSAJE>' . htmlspecialchars($mensaje) . '</MENSAJE>'
+                . '<TOTAL>' . htmlspecialchars($total) . '</TOTAL>'
+                . '</TOTALPAGO>';
+
+            return $this->soapWrap($out, 200);
+        }
+
+        // =========================
+        // (6) TOTAL REVERSIÓN
+        // =========================
+        if ($opName === 'totalreversion' || $opName === 'total_reversion') {
+            $usuario = trim($xpath->evaluate('string(./Usuario)', $opNode));
+            $pass    = trim($xpath->evaluate('string(./Pass)', $opNode));
+
+            $remisiones = [];
+            $remNodes = $xpath->query('./Remisiones/Remision', $opNode);
+
+            foreach ($remNodes as $rNode) {
+                if (!$rNode instanceof \DOMElement) continue;
+
+                // soporta tags tipoPlaca / Tipo_Placa / tipo_placa
+                $tipoPlaca = trim($xpath->evaluate('string((./tipoPlaca|./Tipo_Placa|./tipo_placa)[1])', $rNode));
+                $placa     = trim($xpath->evaluate('string((./placa|./Placa)[1])', $rNode));
+
+                $remisiones[] = [
+                    'tipoPlaca'      => $tipoPlaca,
+                    'placa'          => $placa,
+                    'total'          => trim($xpath->evaluate('string(./total)', $rNode)),
+                    'no_referencia'  => trim($xpath->evaluate('string(./no_referencia)', $rNode)),
+                    'no_autorizacion'=> trim($xpath->evaluate('string(./no_autorizacion)', $rNode)),
+                ];
+            }
+
+            $result = $TotalReversionService->execute($remisiones, $usuario, $pass);
 
             if (isset($result['error'])) {
                 $out = '<ERROR>'
@@ -272,18 +328,17 @@ class SoapController extends AbstractController
                 return $this->soapWrap($out, 200);
             }
 
-            $doc = (string) ($result['reversion']['doc'] ?? '');
-            $cod = (string) ($result['reversion']['cod'] ?? '');
-            $mensaje = (string) ($result['reversion']['mensaje'] ?? '');
+            $doc     = (string)($result['remision']['doc'] ?? '');
+            $cod     = (string)($result['remision']['cod'] ?? '');
+            $mensaje = (string)($result['remision']['mensaje'] ?? '');
 
-            $out = '<REVERSION>'
+            $out = '<REMISION>'
                 . '<DOC>' . htmlspecialchars($doc) . '</DOC>'
                 . '<COD>' . htmlspecialchars($cod) . '</COD>'
                 . '<MENSAJE>' . htmlspecialchars($mensaje) . '</MENSAJE>'
-                . '</REVERSION>';
+                . '</REMISION>';
 
             return $this->soapWrap($out, 200);
-            
         }
 
         // Operación no soportada
