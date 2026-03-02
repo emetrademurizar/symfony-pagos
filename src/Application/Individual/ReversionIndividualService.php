@@ -25,6 +25,28 @@ class ReversionIndividualService
             ];
         }
 
+        $fuera_tiempo = false;
+        if ($fuera_tiempo) {
+            return [
+                'reversion' => [
+                    'doc' => 'T-2142',
+                    'cod' => '002',
+                    'mensaje' => 'SE HA EXCEDIDO LA FECHA',
+                ],
+            ];
+        }
+
+        $pagada = true;
+        if (!$pagada) {
+            return [
+                'reversion' => [
+                    'doc' => 'T-2142',
+                    'cod' => '003',
+                    'mensaje' => 'REMNISION SIN PAGAR',
+                ],
+            ];
+        }
+
         // Si no mandan remisiones, simulamos “no procesada”
         if (count($remisiones) === 0) {
             return [

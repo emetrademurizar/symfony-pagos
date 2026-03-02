@@ -29,10 +29,8 @@ class TotalConsultaService
         if ($tipoPlaca === 'P' && $placa === '123ABC') {
             return [
                 'total' => [
-                    'doc' => 'P-123ABC',
-                    'total_venta' => 100,
-                    'cod' => '000',
-                    'mensaje' => 'TOTAL CONSULTADO',
+                    'fecha' => '2024-06-01',
+                    'total' => 100,
                 ],
             ];
         }
@@ -40,10 +38,8 @@ class TotalConsultaService
         // Si no se encuentra un total, por ejemplo si no se encuentra la placa
         return [
             'total' => [
-                'doc' => '',
-                'total_venta' => 0,
-                'cod' => '004',
-                'mensaje' => 'TRANSACCION NO PROCESADA',
+                'fecha' => '2024-06-01',
+                'total' => 100,
             ],
         ];
     }

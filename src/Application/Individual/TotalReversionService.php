@@ -25,11 +25,55 @@ class TotalReversionService
             ];
         }
 
+        $placa_valida = true;
+        if(!$placa_valida) {        
+            return [
+                'error' => [
+                    'cod' => '002',
+                    'mensaje' => 'LA PLACA NO ES VALIDA',
+                ],
+            ];
+        }
+
         // Si no mandan remisiones
         if (count($remisiones) === 0) {
             return [
-                'error' => [
+                'remision' => [
+                    'doc' => 'T-2142',
+                    'cod' => '003',
+                    'mensaje' => 'SIN REMISIONES PENDIENTES',
+                ],
+            ];
+        }
+
+        $fecha_valida = true;
+        if (!$fecha_valida) {
+            return [
+                'remision' => [
+                    'doc' => 'T-2142',
                     'cod' => '004',
+                    'mensaje' => 'SE HA EXCEDIDO LA FECHA',
+                ],
+            ];
+        }
+
+        $pagada = true;
+        if (!$pagada) {
+            return [
+                'remision' => [
+                    'doc' => 'T-2142',
+                    'cod' => '005',
+                    'mensaje' => 'REMISION SIN PAGAR',
+                ],
+            ];
+        }
+
+        $procesada = true;
+        if (!$procesada) {
+            return [
+                'remision' => [
+                    'doc' => 'T-2142',
+                    'cod' => '006',
                     'mensaje' => 'TRANSACCION NO PROCESADA',
                 ],
             ];

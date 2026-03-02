@@ -200,11 +200,11 @@ class SoapController extends AbstractController
             $cod = (string) ($result['reversion']['cod'] ?? '');
             $mensaje = (string) ($result['reversion']['mensaje'] ?? '');
 
-            $out = '<REVERSION>'
+            $out = '<REMISION>'
                 . '<DOC>' . htmlspecialchars($doc) . '</DOC>'
                 . '<COD>' . htmlspecialchars($cod) . '</COD>'
                 . '<MENSAJE>' . htmlspecialchars($mensaje) . '</MENSAJE>'
-                . '</REVERSION>';
+                . '</REMISION>';
 
             return $this->soapWrap($out, 200);
         }
@@ -229,17 +229,13 @@ class SoapController extends AbstractController
                 return $this->soapWrap($out, 200);
             }
 
-            $doc = (string) ($result['total']['doc'] ?? '');
-            $totalVenta = (string) ($result['total']['total_venta'] ?? '');
-            $cod = (string) ($result['total']['cod'] ?? '');
-            $mensaje = (string) ($result['total']['mensaje'] ?? '');
+            $fecha = (string) ($result['total']['fecha'] ?? '');
+            $total = (string) ($result['total']['total'] ?? '');
 
-            $out = '<TOTAL>'
-                . '<DOC>' . htmlspecialchars($doc) . '</DOC>'
-                . '<TOTAL_VENTA>' . htmlspecialchars($totalVenta) . '</TOTAL_VENTA>'
-                . '<COD>' . htmlspecialchars($cod) . '</COD>'
-                . '<MENSAJE>' . htmlspecialchars($mensaje) . '</MENSAJE>'
-                . '</TOTAL>';
+            $out = '<RESULTADO>'
+                . '<FECHA>' . htmlspecialchars($fecha) . '</FECHA>'
+                . '<TOTAL>' . htmlspecialchars($total) . '</TOTAL>'
+                . '</RESULTADO>';
 
             return $this->soapWrap($out, 200);
         }
@@ -279,14 +275,12 @@ class SoapController extends AbstractController
             $doc = (string)($result['total_pago']['doc'] ?? '');
             $cod = (string)($result['total_pago']['cod'] ?? '');
             $mensaje = (string)($result['total_pago']['mensaje'] ?? '');
-            $total = (string)($result['total_pago']['total'] ?? '');
 
-            $out = '<TOTALPAGO>'
+            $out = '<REMISION>'
                 . '<DOC>' . htmlspecialchars($doc) . '</DOC>'
                 . '<COD>' . htmlspecialchars($cod) . '</COD>'
                 . '<MENSAJE>' . htmlspecialchars($mensaje) . '</MENSAJE>'
-                . '<TOTAL>' . htmlspecialchars($total) . '</TOTAL>'
-                . '</TOTALPAGO>';
+                . '</REMISION>';
 
             return $this->soapWrap($out, 200);
         }
