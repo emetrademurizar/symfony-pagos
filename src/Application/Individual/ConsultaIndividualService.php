@@ -2,11 +2,13 @@
 
 namespace App\Application\Individual;
 use Doctrine\DBAL\Connection;
+use App\Utils\Validator;
 
 class ConsultaIndividualService
 {
     public function __construct(
         private readonly Connection $conn,
+        private readonly Validator $Validator
     ){}
 
     public function execute(
@@ -26,7 +28,7 @@ class ConsultaIndividualService
         }
 
         // 2) Validar placa
-        if ($tipoPlaca === '' || $placa === '') {
+        if ($tipoPlaca === '' || !$this->Validator->validPlaca($placa)) {
             return [
                 'error' => [
                     'cod' => '002',
@@ -137,17 +139,27 @@ class ConsultaIndividualService
             ];
         }
 
+        $remisiones = array_map(static function (array $r): array {
+            // DBAL puede devolver keys en mayúsculas según driver; cubrimos ambos
+            $serie  = $r['SERIE'] ?? $r['serie'] ?? null;
+            $numero = $r['REMISION'] ?? $r['remision'] ?? null;
+
+            $nombre = $r['NOMBRE'] ?? $r['nombre'] ?? null;
+            $fecha  = $r['FECHA'] ?? $r['fecha'] ?? null; // viene del alias TO_CHAR(... ) AS fecha
+            $total  = $r['TOTAL'] ?? $r['total'] ?? null;
+
+            return [
+                'serie'  => (string)($serie ?? ''),
+                'numero' => (string)($numero ?? ''),
+                'nombre' => (string)($nombre ?? 'SIN DATOS DEL CONDUCTOR'),
+                'fecha'  => (string)($fecha ?? ''),
+                'total'  => $total !== null ? (float)$total : 0.0,
+            ];
+        }, $rows);
+
         // 4) Simulación de datos
         return [
-            'remisiones' => [
-                [
-                    'serie' => 'T',
-                    'numero' => '2142',
-                    'nombre' => 'SIN DATOS DEL CONDUCTOR',
-                    'fecha' => '2021-01-19',
-                    'total' => $total,
-                ],
-            ],
+            'remisiones' => $remisiones,
         ];
     }
 }
