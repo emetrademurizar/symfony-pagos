@@ -1,14 +1,22 @@
 <?php
 
 namespace App\Application\Individual;
+use Doctrine\DBAL\Connection;
 
 class PagoIndividualService
 {
+    private const TIPO_OPERA = 'N';
+    private const USUARIO_GRABA = 'POSNEONET';
+    public function __construct(
+        private readonly Connection $conn,
+    ){}
     /**
      * @param array<int, array{
      *   serie?: string,
      *   remision?: string,
+     *   numero?: string,
      *   total?: float|int|string,
+     *   valor?: float|int|string,
      *   no_referencia?: int|string,
      *   no_autorizacion?: int|string
      * }> $remisiones
@@ -24,6 +32,20 @@ class PagoIndividualService
                 ],
             ];
         }
+
+        if (count($remisiones) === 0){
+            return[
+                'remision' => [
+                    'doc' => '',
+                    'cod' => '004',
+                    'mensaje' => 'TRANSACCION NO PROCESADA',
+                ]
+            ];
+        }
+
+        $docs =[];
+
+        
 
         $anterior = false;
         if ($anterior) {

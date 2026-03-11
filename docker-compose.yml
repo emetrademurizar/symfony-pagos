@@ -8,6 +8,5 @@ services:
     env_file:
       - .env
     command: symfony serve --no-tls --port=8000 --allow-http --allow-all-ip
-    # command: php -S 0.0.0.0:8000 -t public
     ports:
       - "8000:8000"
