@@ -110,14 +110,16 @@ class SoapController extends AbstractController
             $remNodes = $xpath->query('./Remisiones/Remision', $opNode);
             if ($remNodes && $remNodes->length > 0) {
                 foreach ($remNodes as $rNode) {
-                    if (!$rNode instanceof \DOMElement) continue;
+                    if (!$rNode instanceof \DOMElement) {
+                        continue;
+                    }
 
                     $remisiones[] = [
-                        'serie'          => trim($xpath->evaluate('string(./serie)', $rNode)),
-                        'remision'       => trim($xpath->evaluate('string(./remision)', $rNode)),
-                        'total'          => trim($xpath->evaluate('string(./total)', $rNode)),
-                        'no_referencia'  => trim($xpath->evaluate('string(./no_referencia)', $rNode)),
-                        'no_autorizacion'=> trim($xpath->evaluate('string(./no_autorizacion)', $rNode)),
+                        'serie'           => trim($xpath->evaluate('string(./serie)', $rNode)),
+                        'remision'        => trim($xpath->evaluate('string(./remision)', $rNode)),
+                        'total'           => trim($xpath->evaluate('string(./total)', $rNode)),
+                        'no_referencia'   => trim($xpath->evaluate('string(./no_referencia)', $rNode)),
+                        'no_autorizacion' => trim($xpath->evaluate('string(./no_autorizacion)', $rNode)),
                     ];
                 }
             } else {
@@ -125,18 +127,20 @@ class SoapController extends AbstractController
                 $remNodes2 = $xpath->query('./Remision', $opNode);
                 if ($remNodes2 && $remNodes2->length > 0) {
                     foreach ($remNodes2 as $rNode) {
-                        if (!$rNode instanceof \DOMElement) continue;
+                        if (!$rNode instanceof \DOMElement) {
+                            continue;
+                        }
 
                         $remisiones[] = [
-                            'serie'          => trim($xpath->evaluate('string(./serie)', $rNode)),
-                            'remision'       => trim($xpath->evaluate('string(./remision)', $rNode)),
-                            'total'          => trim($xpath->evaluate('string(./total)', $rNode)),
-                            'no_referencia'  => trim($xpath->evaluate('string(./no_referencia)', $rNode)),
-                            'no_autorizacion'=> trim($xpath->evaluate('string(./no_autorizacion)', $rNode)),
+                            'serie'           => trim($xpath->evaluate('string(./serie)', $rNode)),
+                            'remision'        => trim($xpath->evaluate('string(./remision)', $rNode)),
+                            'total'           => trim($xpath->evaluate('string(./total)', $rNode)),
+                            'no_referencia'   => trim($xpath->evaluate('string(./no_referencia)', $rNode)),
+                            'no_autorizacion' => trim($xpath->evaluate('string(./no_autorizacion)', $rNode)),
                         ];
                     }
                 }
-            }
+            } 
 
             $result = $pagoService->execute($remisiones, $usuario, $pass);
 
@@ -149,7 +153,6 @@ class SoapController extends AbstractController
                 return $this->soapWrap($out, 200);
             }
 
-            // Tu service devuelve: ['remision' => ['doc','cod','mensaje']]
             $doc     = (string)($result['remision']['doc'] ?? '');
             $cod     = (string)($result['remision']['cod'] ?? '');
             $mensaje = (string)($result['remision']['mensaje'] ?? '');
@@ -157,8 +160,42 @@ class SoapController extends AbstractController
             $out = '<REMISION>'
                 . '<DOC>' . htmlspecialchars($doc) . '</DOC>'
                 . '<COD>' . htmlspecialchars($cod) . '</COD>'
-                . '<MENSAJE>' . htmlspecialchars($mensaje) . '</MENSAJE>'
-                . '</REMISION>';
+                . '<MENSAJE>' . htmlspecialchars($mensaje) . '</MENSAJE>';
+
+            // Caso parcial: agregar detalle de procesadas y no procesadas
+            if (!empty($result['procesadas']) || !empty($result['no_procesadas'])) {
+                $out .= '<DETALLE>';
+
+                if (!empty($result['procesadas'])) {
+                    $out .= '<PROCESADAS>';
+                    foreach ($result['procesadas'] as $p) {
+                        $out .= '<ITEM>'
+                            . '<SERIE>' . htmlspecialchars((string)($p['serie'] ?? '')) . '</SERIE>'
+                            . '<REMISION>' . htmlspecialchars((string)($p['remision'] ?? '')) . '</REMISION>'
+                            . '<CODIGO>' . htmlspecialchars((string)($p['codigo'] ?? '')) . '</CODIGO>'
+                            . '<MENSAJE>' . htmlspecialchars((string)($p['mensaje'] ?? '')) . '</MENSAJE>'
+                            . '</ITEM>';
+                    }
+                    $out .= '</PROCESADAS>';
+                }
+
+                if (!empty($result['no_procesadas'])) {
+                    $out .= '<NO_PROCESADAS>';
+                    foreach ($result['no_procesadas'] as $np) {
+                        $out .= '<ITEM>'
+                            . '<SERIE>' . htmlspecialchars((string)($np['serie'] ?? '')) . '</SERIE>'
+                            . '<REMISION>' . htmlspecialchars((string)($np['remision'] ?? '')) . '</REMISION>'
+                            . '<CODIGO>' . htmlspecialchars((string)($np['codigo'] ?? '')) . '</CODIGO>'
+                            . '<MENSAJE>' . htmlspecialchars((string)($np['mensaje'] ?? '')) . '</MENSAJE>'
+                            . '</ITEM>';
+                    }
+                    $out .= '</NO_PROCESADAS>';
+                }
+
+                $out .= '</DETALLE>';
+            }
+
+            $out .= '</REMISION>';
 
             return $this->soapWrap($out, 200);
         }

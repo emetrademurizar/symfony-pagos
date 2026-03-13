@@ -20,4 +20,9 @@ class Validator
 
         return ctype_alpha($literales) && ctype_digit($numeros);
     }
+    
+    public function validUser(string $usuario, string $password): bool
+    {
+        return $usuario === 'demo' && $password === 'demo123';
+    }
 }
