@@ -1,26 +1,50 @@
 <?php
 
 namespace App\Application\Individual;
+
 use Doctrine\DBAL\Connection;
 use App\Utils\Validator;
+use App\Utils\Bitacora;
 
 class TotalConsultaService
 {
+    private const CODIGO_USUARIO_LOCAL = '1';
+    private const TIPO_OPERACION_BITACORA = '4';
+
     public function __construct(
         private readonly Connection $conn,
-        private readonly Validator $Validator
-    ){}
+        private readonly Validator $validator,
+        private readonly Bitacora $bitacora
+    ) {}
 
-    /**
-     * @param string $tipoPlaca
-     * @param string $placa
-     * @param string $usuario
-     * @param string $clave
-     */
-    public function execute(string $tipoPlaca, string $placa, string $usuario, string $clave): array
-    {
-        // Lógica de validación de usuario (dummy, después conectas lógica real)
-        if ($usuario !== 'demo' || $clave !== 'demo123') {
+    public function execute(
+        string $tipoPlaca,
+        string $placa,
+        string $usuario,
+        string $clave,
+        string $ip = ''
+    ): array {
+        $tipoPlaca = strtoupper(trim($tipoPlaca));
+        $placa = strtoupper(trim($placa));
+
+        if (!$this->validator->validUser($usuario, $clave)) {
+            $this->bitacora->bitacora(
+                codigo: self::CODIGO_USUARIO_LOCAL,
+                ip: $ip,
+                usuario: $usuario,
+                serie: '',
+                remision: '',
+                referencia: '',
+                autorizacion: '',
+                operacion: self::TIPO_OPERACION_BITACORA,
+                totalOperacion: 0,
+                totalPago: 0,
+                estatus: 'ERROR',
+                codRespuesta: '001',
+                tipoPlaca: $tipoPlaca,
+                placa: $placa
+            );
+
             return [
                 'error' => [
                     'cod' => '001',
@@ -29,11 +53,24 @@ class TotalConsultaService
             ];
         }
 
-        // 2) Validación de placa
-        $tipoPlaca = strtoupper(trim($tipoPlaca));
-        $placa = strtoupper(trim($placa));
+        if ($tipoPlaca === '' || !$this->validator->validPlaca($placa)) {
+            $this->bitacora->bitacora(
+                codigo: self::CODIGO_USUARIO_LOCAL,
+                ip: $ip,
+                usuario: $usuario,
+                serie: '',
+                remision: '',
+                referencia: '',
+                autorizacion: '',
+                operacion: self::TIPO_OPERACION_BITACORA,
+                totalOperacion: 0,
+                totalPago: 0,
+                estatus: 'ERROR',
+                codRespuesta: '002',
+                tipoPlaca: $tipoPlaca,
+                placa: $placa
+            );
 
-        if ($tipoPlaca === '' || !$this->Validator->validPlaca($placa)) {
             return [
                 'error' => [
                     'cod' => '002',
@@ -89,23 +126,56 @@ class TotalConsultaService
                 NVL(SUM(total), 0) AS total
             FROM consulta
             SQL;
-        
-        try{
+
+        try {
             $row = $this->conn->fetchAssociative($sql, [
                 'tipo'  => $tipoPlaca,
                 'placa' => $placa,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            $this->bitacora->bitacora(
+                codigo: self::CODIGO_USUARIO_LOCAL,
+                ip: $ip,
+                usuario: $usuario,
+                serie: '',
+                remision: '',
+                referencia: '',
+                autorizacion: '',
+                operacion: self::TIPO_OPERACION_BITACORA,
+                totalOperacion: 0,
+                totalPago: 0,
+                estatus: 'ERROR',
+                codRespuesta: '999',
+                tipoPlaca: $tipoPlaca,
+                placa: $placa
+            );
+
             return [
                 'error' => [
                     'cod' => '999',
-                    // 'mensaje' => 'ERROR INTERNO DEL SERVIDOR',
                     'mensaje' => 'ERROR CONEXION BD: ' . $e->getMessage(),
                 ],
             ];
         }
 
         if (!$row || ($row['FECHA'] ?? $row['fecha'] ?? null) === null) {
+            $this->bitacora->bitacora(
+                codigo: self::CODIGO_USUARIO_LOCAL,
+                ip: $ip,
+                usuario: $usuario,
+                serie: '',
+                remision: '',
+                referencia: '',
+                autorizacion: '',
+                operacion: self::TIPO_OPERACION_BITACORA,
+                totalOperacion: 0,
+                totalPago: 0,
+                estatus: 'ERROR',
+                codRespuesta: '003',
+                tipoPlaca: $tipoPlaca,
+                placa: $placa
+            );
+
             return [
                 'error' => [
                     'cod' => '003',
@@ -114,10 +184,26 @@ class TotalConsultaService
             ];
         }
 
-        $fecha = $row['FECHA'] ?? $row['fecha'] ?? '';
-        $total = $row['TOTAL'] ?? $row['total'] ?? 0;
+        $fecha = (string)($row['FECHA'] ?? $row['fecha'] ?? '');
+        $total = (float)($row['TOTAL'] ?? $row['total'] ?? 0);
 
-        // Si no se encuentra un total, por ejemplo si no se encuentra la placa
+        $this->bitacora->bitacora(
+            codigo: self::CODIGO_USUARIO_LOCAL,
+            ip: $ip,
+            usuario: $usuario,
+            serie: '',
+            remision: '',
+            referencia: '',
+            autorizacion: '',
+            operacion: self::TIPO_OPERACION_BITACORA,
+            totalOperacion: $total,
+            totalPago: $total,
+            estatus: 'EXITOSO',
+            codRespuesta: '000',
+            tipoPlaca: $tipoPlaca,
+            placa: $placa
+        );
+
         return [
             'total' => [
                 'fecha' => $fecha,

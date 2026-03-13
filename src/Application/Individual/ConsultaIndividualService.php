@@ -1,24 +1,50 @@
 <?php
 
 namespace App\Application\Individual;
+
 use Doctrine\DBAL\Connection;
 use App\Utils\Validator;
+use App\Utils\Bitacora;
 
 class ConsultaIndividualService
 {
+    private const CODIGO_USUARIO_LOCAL = '1';
+    private const TIPO_OPERACION_BITACORA = '1';
+
     public function __construct(
         private readonly Connection $conn,
-        private readonly Validator $Validator
-    ){}
+        private readonly Validator $validator,
+        private readonly Bitacora $bitacora
+    ) {}
 
     public function execute(
         string $tipoPlaca,
         string $placa,
         string $usuario,
-        string $pass
+        string $pass,
+        string $ip = ''
     ): array {
-        // 1) Validar usuario
-        if ($usuario !== 'demo' || $pass !== 'demo123') {
+        $tipoPlaca = strtoupper(trim($tipoPlaca));
+        $placa = strtoupper(trim($placa));
+
+        if (!$this->validator->validUser($usuario, $pass)) {
+            $this->bitacora->bitacora(
+                codigo: self::CODIGO_USUARIO_LOCAL,
+                ip: $ip,
+                usuario: $usuario,
+                serie: '',
+                remision: '',
+                referencia: '',
+                autorizacion: '',
+                operacion: self::TIPO_OPERACION_BITACORA,
+                totalOperacion: 0,
+                totalPago: 0,
+                estatus: 'ERROR',
+                codRespuesta: '001',
+                tipoPlaca: $tipoPlaca,
+                placa: $placa
+            );
+
             return [
                 'error' => [
                     'cod' => '001',
@@ -27,8 +53,24 @@ class ConsultaIndividualService
             ];
         }
 
-        // 2) Validar placa
-        if ($tipoPlaca === '' || !$this->Validator->validPlaca($placa)) {
+        if ($tipoPlaca === '' || !$this->validator->validPlaca($placa)) {
+            $this->bitacora->bitacora(
+                codigo: self::CODIGO_USUARIO_LOCAL,
+                ip: $ip,
+                usuario: $usuario,
+                serie: '',
+                remision: '',
+                referencia: '',
+                autorizacion: '',
+                operacion: self::TIPO_OPERACION_BITACORA,
+                totalOperacion: 0,
+                totalPago: 0,
+                estatus: 'ERROR',
+                codRespuesta: '002',
+                tipoPlaca: $tipoPlaca,
+                placa: $placa
+            );
+
             return [
                 'error' => [
                     'cod' => '002',
@@ -36,9 +78,6 @@ class ConsultaIndividualService
                 ],
             ];
         }
-
-        $tipoPlaca = strtoupper($tipoPlaca);
-        $placa = strtoupper($placa);
 
         $sql = <<<'SQL'
             WITH placas_filtradas AS (
@@ -118,9 +157,23 @@ class ConsultaIndividualService
                 'tipo'  => $tipoPlaca,
                 'placa' => $placa,
             ]);
-        } catch (\Throwable $e){
-            $params = $this->conn->getParams();
-            unset($params['password']);
+        } catch (\Throwable $e) {
+            $this->bitacora->bitacora(
+                codigo: self::CODIGO_USUARIO_LOCAL,
+                ip: $ip,
+                usuario: $usuario,
+                serie: '',
+                remision: '',
+                referencia: '',
+                autorizacion: '',
+                operacion: self::TIPO_OPERACION_BITACORA,
+                totalOperacion: 0,
+                totalPago: 0,
+                estatus: 'ERROR',
+                codRespuesta: '999',
+                tipoPlaca: $tipoPlaca,
+                placa: $placa
+            );
 
             return [
                 'error' => [
@@ -131,6 +184,23 @@ class ConsultaIndividualService
         }
 
         if (!$rows) {
+            $this->bitacora->bitacora(
+                codigo: self::CODIGO_USUARIO_LOCAL,
+                ip: $ip,
+                usuario: $usuario,
+                serie: '',
+                remision: '',
+                referencia: '',
+                autorizacion: '',
+                operacion: self::TIPO_OPERACION_BITACORA,
+                totalOperacion: 0,
+                totalPago: 0,
+                estatus: 'ERROR',
+                codRespuesta: '003',
+                tipoPlaca: $tipoPlaca,
+                placa: $placa
+            );
+
             return [
                 'error' => [
                     'cod' => '003',
@@ -140,12 +210,10 @@ class ConsultaIndividualService
         }
 
         $remisiones = array_map(static function (array $r): array {
-            // DBAL puede devolver keys en mayúsculas según driver; cubrimos ambos
             $serie  = $r['SERIE'] ?? $r['serie'] ?? null;
             $numero = $r['REMISION'] ?? $r['remision'] ?? null;
-
             $nombre = $r['NOMBRE'] ?? $r['nombre'] ?? null;
-            $fecha  = $r['FECHA'] ?? $r['fecha'] ?? null; // viene del alias TO_CHAR(... ) AS fecha
+            $fecha  = $r['FECHA'] ?? $r['fecha'] ?? null;
             $total  = $r['TOTAL'] ?? $r['total'] ?? null;
 
             return [
@@ -157,7 +225,30 @@ class ConsultaIndividualService
             ];
         }, $rows);
 
-        // 4) Simulación de datos
+        $totalOperacion = 0.0;
+        foreach ($remisiones as $r) {
+            $totalOperacion += (float)$r['total'];
+        }
+
+        foreach ($remisiones as $r) {
+            $this->bitacora->bitacora(
+                codigo: self::CODIGO_USUARIO_LOCAL,
+                ip: $ip,
+                usuario: $usuario,
+                serie: (string)$r['serie'],
+                remision: (string)$r['numero'],
+                referencia: '',
+                autorizacion: '',
+                operacion: self::TIPO_OPERACION_BITACORA,
+                totalOperacion: $totalOperacion,
+                totalPago: (float)$r['total'],
+                estatus: 'EXITOSO',
+                codRespuesta: '000',
+                tipoPlaca: $tipoPlaca,
+                placa: $placa
+            );
+        }
+
         return [
             'remisiones' => $remisiones,
         ];
