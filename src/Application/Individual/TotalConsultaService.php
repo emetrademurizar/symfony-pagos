@@ -17,6 +17,16 @@ class TotalConsultaService
         private readonly Bitacora $bitacora
     ) {}
 
+    private function commitBitacora(): void
+    {
+        $oci = $this->conn->getNativeConnection();
+
+        if (!oci_commit($oci)) {
+            $e = oci_error($oci);
+            throw new \RuntimeException($e['message'] ?? 'ERROR AL CONFIRMAR BITACORA');
+        }
+    }
+
     public function execute(
         string $tipoPlaca,
         string $placa,
@@ -44,7 +54,7 @@ class TotalConsultaService
                 tipoPlaca: $tipoPlaca,
                 placa: $placa
             );
-
+            $this->commitBitacora();
             return [
                 'error' => [
                     'cod' => '001',
@@ -70,7 +80,7 @@ class TotalConsultaService
                 tipoPlaca: $tipoPlaca,
                 placa: $placa
             );
-
+            $this->commitBitacora();
             return [
                 'error' => [
                     'cod' => '002',
@@ -149,7 +159,7 @@ class TotalConsultaService
                 tipoPlaca: $tipoPlaca,
                 placa: $placa
             );
-
+            $this->commitBitacora();
             return [
                 'error' => [
                     'cod' => '999',
@@ -175,7 +185,7 @@ class TotalConsultaService
                 tipoPlaca: $tipoPlaca,
                 placa: $placa
             );
-
+            $this->commitBitacora();
             return [
                 'error' => [
                     'cod' => '003',
@@ -203,7 +213,7 @@ class TotalConsultaService
             tipoPlaca: $tipoPlaca,
             placa: $placa
         );
-
+        $this->commitBitacora();
         return [
             'total' => [
                 'fecha' => $fecha,
