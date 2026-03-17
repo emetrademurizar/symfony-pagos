@@ -11,7 +11,6 @@ class PagoIndividualService
     private const TIPO_OPERA = 'N';
     private const USUARIO_GRABA = 'POSNEONET';
     private const TIPO_OPERACION_BITACORA = '2';
-    private const CODIGO_USUARIO_LOCAL = '1';
 
     public function __construct(
         private readonly Connection $conn,
@@ -34,7 +33,10 @@ class PagoIndividualService
      */
     public function execute(array $remisiones, string $usuario, string $pass, string $ip = ''): array
     {
-        if (!$this->validator->validUser($usuario, $pass)) {
+
+        $userData = $this->validator->validUser($usuario, $pass);
+
+        if (!$userData) {
             return [
                 'error' => [
                     'cod' => '001',
@@ -42,6 +44,8 @@ class PagoIndividualService
                 ],
             ];
         }
+
+        $codigoUsuario = $userData['codigo'];
 
         if (count($remisiones) === 0) {
             return [
@@ -131,7 +135,7 @@ class PagoIndividualService
                 // Si ya hubo un error antes, esta remisión ya no se intenta pagar.
                 if ($detener) {
                     $this->bitacora->bitacora(
-                        codigo: self::CODIGO_USUARIO_LOCAL,
+                        codigo: $codigoUsuario,
                         ip: $ip,
                         usuario: $usuario,
                         serie: $serie,
@@ -159,7 +163,7 @@ class PagoIndividualService
 
                 if ($serie === '' || $remision === '' || $monto <= 0) {
                     $this->bitacora->bitacora(
-                        codigo: self::CODIGO_USUARIO_LOCAL,
+                        codigo: $codigoUsuario,
                         ip: $ip,
                         usuario: $usuario,
                         serie: $serie,
@@ -191,7 +195,7 @@ class PagoIndividualService
                 $stmtPago = oci_parse($oci, $sqlPago);
                 if ($stmtPago === false) {
                     $this->bitacora->bitacora(
-                        codigo: self::CODIGO_USUARIO_LOCAL,
+                        codigo: $codigoUsuario,
                         ip: $ip,
                         usuario: $usuario,
                         serie: $serie,
@@ -240,7 +244,7 @@ class PagoIndividualService
                     $mensaje = $e['message'] ?? 'TRANSACCION NO PROCESADA';
 
                     $this->bitacora->bitacora(
-                        codigo: self::CODIGO_USUARIO_LOCAL,
+                        codigo: $codigoUsuario,
                         ip: $ip,
                         usuario: $usuario,
                         serie: $serie,
@@ -336,7 +340,7 @@ class PagoIndividualService
 
                 // Bitácora siempre
                 $this->bitacora->bitacora(
-                    codigo: self::CODIGO_USUARIO_LOCAL,
+                    codigo: $codigoUsuario,
                     ip: $ip,
                     usuario: $usuario,
                     serie: $serie,

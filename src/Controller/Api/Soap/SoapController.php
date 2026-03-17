@@ -322,56 +322,6 @@ class SoapController extends AbstractController
             return $this->soapWrap($out, 200);
         }
 
-        // =========================
-        // (6) TOTAL REVERSIÓN
-        // =========================
-        if ($opName === 'totalreversion' || $opName === 'total_reversion') {
-            $usuario = trim($xpath->evaluate('string(./Usuario)', $opNode));
-            $pass    = trim($xpath->evaluate('string(./Pass)', $opNode));
-
-            $remisiones = [];
-            $remNodes = $xpath->query('./Remisiones/Remision', $opNode);
-
-            foreach ($remNodes as $rNode) {
-                if (!$rNode instanceof \DOMElement) continue;
-
-                // soporta tags tipoPlaca / Tipo_Placa / tipo_placa
-                $tipoPlaca = trim($xpath->evaluate('string((./tipoPlaca|./Tipo_Placa|./tipo_placa)[1])', $rNode));
-                $placa     = trim($xpath->evaluate('string((./placa|./Placa)[1])', $rNode));
-
-                $remisiones[] = [
-                    'tipoPlaca'      => $tipoPlaca,
-                    'placa'          => $placa,
-                    'total'          => trim($xpath->evaluate('string(./total)', $rNode)),
-                    'no_referencia'  => trim($xpath->evaluate('string(./no_referencia)', $rNode)),
-                    'no_autorizacion'=> trim($xpath->evaluate('string(./no_autorizacion)', $rNode)),
-                ];
-            }
-
-            $result = $TotalReversionService->execute($remisiones, $usuario, $pass);
-
-            if (isset($result['error'])) {
-                $out = '<ERROR>'
-                    . '<COD>' . htmlspecialchars((string) $result['error']['cod']) . '</COD>'
-                    . '<MENSAJE>' . htmlspecialchars((string) $result['error']['mensaje']) . '</MENSAJE>'
-                    . '</ERROR>';
-
-                return $this->soapWrap($out, 200);
-            }
-
-            $doc     = (string)($result['remision']['doc'] ?? '');
-            $cod     = (string)($result['remision']['cod'] ?? '');
-            $mensaje = (string)($result['remision']['mensaje'] ?? '');
-
-            $out = '<REMISION>'
-                . '<DOC>' . htmlspecialchars($doc) . '</DOC>'
-                . '<COD>' . htmlspecialchars($cod) . '</COD>'
-                . '<MENSAJE>' . htmlspecialchars($mensaje) . '</MENSAJE>'
-                . '</REMISION>';
-
-            return $this->soapWrap($out, 200);
-        }
-
         // Operación no soportada
         return $this->soapWrap(
             '<ERROR><COD>999</COD><MENSAJE>OPERACION NO SOPORTADA</MENSAJE></ERROR>',

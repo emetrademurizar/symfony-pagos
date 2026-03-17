@@ -8,7 +8,6 @@ use App\Utils\Bitacora;
 
 class TotalConsultaService
 {
-    private const CODIGO_USUARIO_LOCAL = '1';
     private const TIPO_OPERACION_BITACORA = '4';
 
     public function __construct(
@@ -37,24 +36,9 @@ class TotalConsultaService
         $tipoPlaca = strtoupper(trim($tipoPlaca));
         $placa = strtoupper(trim($placa));
 
-        if (!$this->validator->validUser($usuario, $clave)) {
-            $this->bitacora->bitacora(
-                codigo: self::CODIGO_USUARIO_LOCAL,
-                ip: $ip,
-                usuario: $usuario,
-                serie: '',
-                remision: '',
-                referencia: '',
-                autorizacion: '',
-                operacion: self::TIPO_OPERACION_BITACORA,
-                totalOperacion: 0,
-                totalPago: 0,
-                estatus: 'ERROR',
-                codRespuesta: '001',
-                tipoPlaca: $tipoPlaca,
-                placa: $placa
-            );
-            $this->commitBitacora();
+        $userData = $this->validator->validUser($usuario, $clave);
+
+        if (!$userData) {
             return [
                 'error' => [
                     'cod' => '001',
@@ -63,9 +47,11 @@ class TotalConsultaService
             ];
         }
 
+        $codigoUsuario = $userData['codigo'];
+
         if ($tipoPlaca === '' || !$this->validator->validPlaca($placa)) {
             $this->bitacora->bitacora(
-                codigo: self::CODIGO_USUARIO_LOCAL,
+                codigo: $codigoUsuario,
                 ip: $ip,
                 usuario: $usuario,
                 serie: '',
@@ -144,7 +130,7 @@ class TotalConsultaService
             ]);
         } catch (\Throwable $e) {
             $this->bitacora->bitacora(
-                codigo: self::CODIGO_USUARIO_LOCAL,
+                codigo: $codigoUsuario,
                 ip: $ip,
                 usuario: $usuario,
                 serie: '',
@@ -170,7 +156,7 @@ class TotalConsultaService
 
         if (!$row || ($row['FECHA'] ?? $row['fecha'] ?? null) === null) {
             $this->bitacora->bitacora(
-                codigo: self::CODIGO_USUARIO_LOCAL,
+                codigo: $codigoUsuario,
                 ip: $ip,
                 usuario: $usuario,
                 serie: '',
@@ -198,7 +184,7 @@ class TotalConsultaService
         $total = (float)($row['TOTAL'] ?? $row['total'] ?? 0);
 
         $this->bitacora->bitacora(
-            codigo: self::CODIGO_USUARIO_LOCAL,
+            codigo: $codigoUsuario,
             ip: $ip,
             usuario: $usuario,
             serie: '',

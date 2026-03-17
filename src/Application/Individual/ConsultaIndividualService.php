@@ -8,7 +8,6 @@ use App\Utils\Bitacora;
 
 class ConsultaIndividualService
 {
-    private const CODIGO_USUARIO_LOCAL = '1';
     private const TIPO_OPERACION_BITACORA = '1';
 
     public function __construct(
@@ -37,25 +36,9 @@ class ConsultaIndividualService
         $tipoPlaca = strtoupper(trim($tipoPlaca));
         $placa = strtoupper(trim($placa));
 
-        if (!$this->validator->validUser($usuario, $pass)) {
-            $this->bitacora->bitacora(
-                codigo: self::CODIGO_USUARIO_LOCAL,
-                ip: $ip,
-                usuario: $usuario,
-                serie: '',
-                remision: '',
-                referencia: '',
-                autorizacion: '',
-                operacion: self::TIPO_OPERACION_BITACORA,
-                totalOperacion: 0,
-                totalPago: 0,
-                estatus: 'ERROR',
-                codRespuesta: '001',
-                tipoPlaca: $tipoPlaca,
-                placa: $placa
-            );
-            $this->commitBitacora();
+        $userData = $this->validator->validUser($usuario, $pass);
 
+        if (!$userData) {
             return [
                 'error' => [
                     'cod' => '001',
@@ -63,10 +46,11 @@ class ConsultaIndividualService
                 ],
             ];
         }
+        $codigoUsuario = $userData['codigo'];
 
         if ($tipoPlaca === '' || !$this->validator->validPlaca($placa)) {
             $this->bitacora->bitacora(
-                codigo: self::CODIGO_USUARIO_LOCAL,
+                codigo: $codigoUsuario,
                 ip: $ip,
                 usuario: $usuario,
                 serie: '',
@@ -171,7 +155,7 @@ class ConsultaIndividualService
             ]);
         } catch (\Throwable $e) {
             $this->bitacora->bitacora(
-                codigo: self::CODIGO_USUARIO_LOCAL,
+                codigo: $codigoUsuario,
                 ip: $ip,
                 usuario: $usuario,
                 serie: '',
@@ -197,7 +181,7 @@ class ConsultaIndividualService
 
         if (!$rows) {
             $this->bitacora->bitacora(
-                codigo: self::CODIGO_USUARIO_LOCAL,
+                codigo: $codigoUsuario,
                 ip: $ip,
                 usuario: $usuario,
                 serie: '',
@@ -244,7 +228,7 @@ class ConsultaIndividualService
 
         foreach ($remisiones as $r) {
             $this->bitacora->bitacora(
-                codigo: self::CODIGO_USUARIO_LOCAL,
+                codigo: $codigoUsuario,
                 ip: $ip,
                 usuario: $usuario,
                 serie: (string)$r['serie'],

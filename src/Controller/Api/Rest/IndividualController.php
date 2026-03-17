@@ -96,17 +96,4 @@ class IndividualController extends AbstractController
         return new JsonResponse($result, isset($result['error']) ? 400 : 200);
     }
 
-    #[Route('/api/rest/individual/total-reversion', methods: ['POST'])]
-    public function totalReversion(Request $request, TotalReversionService $service): JsonResponse
-    {
-        $data = json_decode($request->getContent(), true) ?? [];
-
-        $remisiones = is_array($data['remisiones'] ?? null) ? $data['remisiones'] : [];
-        $usuario    = (string)($data['usuario'] ?? '');
-        $pass       = (string)($data['pass'] ?? '');
-
-        $result = $service->execute($remisiones, $usuario, $pass);
-
-        return new JsonResponse($result, isset($result['error']) ? 400 : 200);
-    }
 }
