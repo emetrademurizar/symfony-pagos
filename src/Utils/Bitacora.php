@@ -11,9 +11,8 @@ class Bitacora
     ) {}
 
     public function bitacora(
-        string $codigo,
         string $ip,
-        string $usuario,
+        int|string $usuario,
         ?string $serie,
         ?string $remision,
         ?string $referencia,
@@ -24,7 +23,8 @@ class Bitacora
         string $estatus,
         string $codRespuesta,
         ?string $tipoPlaca,
-        ?string $placa
+        ?string $placa,
+        ?string $comentarios = null
     ): bool {
         $serie = !empty($serie) ? $serie : '';
         $remision = !empty($remision) ? $remision : '';
@@ -32,6 +32,8 @@ class Bitacora
         $referencia = !empty($referencia) ? $referencia : '';
         $tipoPlaca = !empty($tipoPlaca) ? $tipoPlaca : '';
         $placa = !empty($placa) ? $placa : '';
+        $comentarios = !empty($comentarios) ? $comentarios : '';
+        $usuario = (int)$usuario;
 
         $transaccion = $this->nextBitacora();
         $oci = $this->conn->getNativeConnection();
@@ -39,7 +41,6 @@ class Bitacora
         $sql = <<<'SQL'
             INSERT INTO HISTORIAL_BANCOS(
                 TRANSACCION,
-                CODIGO,
                 IP,
                 FECHA,
                 USUARIO,
@@ -53,10 +54,10 @@ class Bitacora
                 ESTATUS,
                 CODIGO_RESPUESTA,
                 TIPO_PLACA,
-                PLACA
+                PLACA,
+                COMENTARIOS
             ) VALUES(
                 :TRANSACCION,
-                :CODIGO,
                 :IP,
                 SYSDATE,
                 :USUARIO,
@@ -70,7 +71,8 @@ class Bitacora
                 :ESTATUS,
                 :COD_RESPUESTA,
                 :T_PLACA,
-                :PLACA
+                :PLACA,
+                :COMENTARIOS
             )
         SQL;
 
@@ -82,7 +84,6 @@ class Bitacora
         }
 
         oci_bind_by_name($stm, ':TRANSACCION', $transaccion);
-        oci_bind_by_name($stm, ':CODIGO', $codigo);
         oci_bind_by_name($stm, ':IP', $ip);
         oci_bind_by_name($stm, ':USUARIO', $usuario);
         oci_bind_by_name($stm, ':SERIE', $serie);
@@ -96,6 +97,7 @@ class Bitacora
         oci_bind_by_name($stm, ':COD_RESPUESTA', $codRespuesta);
         oci_bind_by_name($stm, ':T_PLACA', $tipoPlaca);
         oci_bind_by_name($stm, ':PLACA', $placa);
+        oci_bind_by_name($stm, ':COMENTARIOS', $comentarios);
 
         $ok = oci_execute($stm, OCI_NO_AUTO_COMMIT);
 

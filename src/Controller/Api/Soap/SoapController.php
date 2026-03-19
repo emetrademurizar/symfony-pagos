@@ -23,7 +23,6 @@ class SoapController extends AbstractController
         ReversionIndividualService $ReversionService,
         TotalConsultaService $TotalConsultaService,
         TotalPagoService $TotalPagoService,
-        TotalReversionService $TotalReversionService
     ): Response{
         $raw = $request->getContent() ?? '';
         $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw); // quitar BOM si existe
@@ -62,7 +61,7 @@ class SoapController extends AbstractController
         }
 
         $opName = strtolower($opNode->localName ?? $opNode->nodeName);
-
+        $ip         = (string)($request->getClientIp() ?? '');
         // =========================
         // (1) Consulta
         // =========================
@@ -72,7 +71,7 @@ class SoapController extends AbstractController
             $usuario   = trim($xpath->evaluate('string(./Usuario)', $opNode));
             $pass      = trim($xpath->evaluate('string(./Pass)', $opNode));
 
-            $result = $consultaService->execute($tipoPlaca, $placa, $usuario, $pass);
+            $result = $consultaService->execute($tipoPlaca, $placa, $usuario, $pass, $ip);
 
             if (isset($result['error'])) {
                 $out = '<ERROR>'
@@ -142,7 +141,7 @@ class SoapController extends AbstractController
                 }
             } 
 
-            $result = $pagoService->execute($remisiones, $usuario, $pass);
+            $result = $pagoService->execute($remisiones, $usuario, $pass, $ip);
 
             if (isset($result['error'])) {
                 $out = '<ERROR>'
@@ -222,7 +221,7 @@ class SoapController extends AbstractController
                 ];
             }
 
-            $result = $ReversionService->execute($remisiones, $usuario, $pass);
+            $result = $ReversionService->execute($remisiones, $usuario, $pass, $ip);
 
             if (isset($result['error'])) {
                 $out = '<ERROR>'
@@ -255,7 +254,7 @@ class SoapController extends AbstractController
             $usuario   = trim($xpath->evaluate('string(./Usuario)', $opNode));
             $clave     = trim($xpath->evaluate('string(./Clave)', $opNode));
 
-            $result = $TotalConsultaService->execute($tipoPlaca, $placa, $usuario, $clave);
+            $result = $TotalConsultaService->execute($tipoPlaca, $placa, $usuario, $clave, $ip);
 
             if (isset($result['error'])) {
                 $out = '<ERROR>'
@@ -297,7 +296,7 @@ class SoapController extends AbstractController
                 ];
             }
 
-            $result = $TotalPagoService->execute($remisiones, $usuario, $pass);
+            $result = $TotalPagoService->execute($remisiones, $usuario, $pass, $ip);
 
             if (isset($result['error'])) {
                 $out = '<ERROR>'

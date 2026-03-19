@@ -9,7 +9,6 @@ use Doctrine\DBAL\Connection;
 class PagoIndividualService
 {
     private const TIPO_OPERA = 'N';
-    private const USUARIO_GRABA = 'POSNEONET';
     private const TIPO_OPERACION_BITACORA = '2';
 
     public function __construct(
@@ -46,6 +45,7 @@ class PagoIndividualService
         }
 
         $codigoUsuario = $userData['codigo'];
+        $nombreUsuario = $userData['nombre_banco'] ?? '';
 
         if (count($remisiones) === 0) {
             return [
@@ -137,7 +137,7 @@ class PagoIndividualService
                     $this->bitacora->bitacora(
                         codigo: $codigoUsuario,
                         ip: $ip,
-                        usuario: $usuario,
+                        usuario: $nombreUsuario,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -165,7 +165,7 @@ class PagoIndividualService
                     $this->bitacora->bitacora(
                         codigo: $codigoUsuario,
                         ip: $ip,
-                        usuario: $usuario,
+                        usuario: $nombreUsuario,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -197,7 +197,7 @@ class PagoIndividualService
                     $this->bitacora->bitacora(
                         codigo: $codigoUsuario,
                         ip: $ip,
-                        usuario: $usuario,
+                        usuario: $nombreUsuario,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -223,7 +223,7 @@ class PagoIndividualService
                 }
 
                 $tipoOpera = self::TIPO_OPERA;
-                $usuarioGraba = self::USUARIO_GRABA;
+                $usuarioGraba = $nombreUsuario;
                 $documentoSalida = '';
 
                 oci_bind_by_name($stmtPago, ':p_serie', $serie);
@@ -246,7 +246,7 @@ class PagoIndividualService
                     $this->bitacora->bitacora(
                         codigo: $codigoUsuario,
                         ip: $ip,
-                        usuario: $usuario,
+                        usuario: $nombreUsuario,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -307,7 +307,22 @@ class PagoIndividualService
                     ];
 
                     $detener = true;
-                } elseif (
+                } else {
+                    $codigoRespuesta = '004';
+                    $estatus = 'ERROR';
+                    $mensajeRespuesta = $documentoSalida !== '' ? $documentoSalida : 'TRANSACCION NO PROCESADA';
+
+                    $noProcesadas[] = [
+                        'serie' => $serie,
+                        'remision' => $remision,
+                        'codigo' => '004',
+                        'mensaje' => $mensajeRespuesta,
+                    ];
+
+                    $detener = true;
+                }
+                
+                /* elseif (
                     str_contains(strtoupper($documentoSalida), 'ANTERIORIDAD') ||
                     str_contains(strtoupper($documentoSalida), 'PROCESADOS CON ANTERIORIDAD')
                 ) {
@@ -336,13 +351,13 @@ class PagoIndividualService
                     ];
 
                     $detener = true;
-                }
+                }*/
 
                 // Bitácora siempre
                 $this->bitacora->bitacora(
                     codigo: $codigoUsuario,
                     ip: $ip,
-                    usuario: $usuario,
+                    usuario: $nombreUsuario,
                     serie: $serie,
                     remision: $remision,
                     referencia: $referencia,

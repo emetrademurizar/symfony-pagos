@@ -47,11 +47,9 @@ class TotalConsultaService
             ];
         }
 
-        $codigoUsuario = $userData['codigo'];
 
         if ($tipoPlaca === '' || !$this->validator->validPlaca($placa)) {
             $this->bitacora->bitacora(
-                codigo: $codigoUsuario,
                 ip: $ip,
                 usuario: $usuario,
                 serie: '',
@@ -130,7 +128,6 @@ class TotalConsultaService
             ]);
         } catch (\Throwable $e) {
             $this->bitacora->bitacora(
-                codigo: $codigoUsuario,
                 ip: $ip,
                 usuario: $usuario,
                 serie: '',
@@ -156,7 +153,6 @@ class TotalConsultaService
 
         if (!$row || ($row['FECHA'] ?? $row['fecha'] ?? null) === null) {
             $this->bitacora->bitacora(
-                codigo: $codigoUsuario,
                 ip: $ip,
                 usuario: $usuario,
                 serie: '',
@@ -184,7 +180,6 @@ class TotalConsultaService
         $total = (float)($row['TOTAL'] ?? $row['total'] ?? 0);
 
         $this->bitacora->bitacora(
-            codigo: $codigoUsuario,
             ip: $ip,
             usuario: $usuario,
             serie: '',

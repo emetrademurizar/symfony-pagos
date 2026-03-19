@@ -46,11 +46,9 @@ class ConsultaIndividualService
                 ],
             ];
         }
-        $codigoUsuario = $userData['codigo'];
 
         if ($tipoPlaca === '' || !$this->validator->validPlaca($placa)) {
             $this->bitacora->bitacora(
-                codigo: $codigoUsuario,
                 ip: $ip,
                 usuario: $usuario,
                 serie: '',
@@ -155,7 +153,6 @@ class ConsultaIndividualService
             ]);
         } catch (\Throwable $e) {
             $this->bitacora->bitacora(
-                codigo: $codigoUsuario,
                 ip: $ip,
                 usuario: $usuario,
                 serie: '',
@@ -181,7 +178,6 @@ class ConsultaIndividualService
 
         if (!$rows) {
             $this->bitacora->bitacora(
-                codigo: $codigoUsuario,
                 ip: $ip,
                 usuario: $usuario,
                 serie: '',
@@ -228,7 +224,6 @@ class ConsultaIndividualService
 
         foreach ($remisiones as $r) {
             $this->bitacora->bitacora(
-                codigo: $codigoUsuario,
                 ip: $ip,
                 usuario: $usuario,
                 serie: (string)$r['serie'],

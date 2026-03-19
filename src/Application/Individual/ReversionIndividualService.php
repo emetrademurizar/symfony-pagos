@@ -58,12 +58,12 @@ class ReversionIndividualService
         }
 
         $codigoUsuario = $userData['codigo'];
+        $nombreUsuario = $userData['nombre_banco'] ?? '';
 
         if (count($remisiones) === 0) {
             $this->bitacora->bitacora(
-                codigo: $codigoUsuario,
                 ip: $ip,
-                usuario: $usuario,
+                usuario: $nombreUsuario,
                 serie: '',
                 remision: '',
                 referencia: '',
@@ -99,9 +99,8 @@ class ReversionIndividualService
 
         if ($documento === '' || !is_numeric($documento)) {
             $this->bitacora->bitacora(
-                codigo: $codigoUsuario,
                 ip: $ip,
-                usuario: $usuario,
+                usuario: $nombreUsuario,
                 serie: $serie,
                 remision: $remision,
                 referencia: $noReferencia,
@@ -130,7 +129,7 @@ class ReversionIndividualService
         try {
             $sql = "
                 BEGIN
-                    sp_reversar_documento(
+                    admemetra.pkg_pago_servicios.sp_reversar_documento(
                         p_numero_recibo => :p_numero_recibo,
                         p_respuesta     => :p_respuesta,
                         p_tipo_opera    => :p_tipo_opera,
@@ -153,7 +152,7 @@ class ReversionIndividualService
             oci_bind_by_name($stmt, ':p_numero_recibo', $numeroRecibo);
             oci_bind_by_name($stmt, ':p_respuesta', $respuesta, 4000);
             oci_bind_by_name($stmt, ':p_tipo_opera', $tipoOperacion);
-            oci_bind_by_name($stmt, ':p_usuario_graba', $usuario);
+            oci_bind_by_name($stmt, ':p_usuario_graba', $nombreUsuario);
 
             $ok = oci_execute($stmt, OCI_NO_AUTO_COMMIT);
 
@@ -170,9 +169,8 @@ class ReversionIndividualService
             oci_free_statement($stmt);
 
             $this->bitacora->bitacora(
-                codigo: $codigoUsuario,
                 ip: $ip,
-                usuario: $usuario,
+                usuario: $nombreUsuario,
                 serie: $serie,
                 remision: $remision,
                 referencia: $noReferencia,
@@ -202,9 +200,8 @@ class ReversionIndividualService
             @oci_rollback($oci);
 
             $this->bitacora->bitacora(
-                codigo: $codigoUsuario,
                 ip: $ip,
-                usuario: $usuario,
+                usuario: $nombreUsuario,
                 serie: $serie,
                 remision: $remision,
                 referencia: $noReferencia,

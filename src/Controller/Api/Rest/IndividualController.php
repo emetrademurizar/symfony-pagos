@@ -15,6 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class IndividualController extends AbstractController
 {
+    
     #[Route('/api/rest/individual/consulta', methods: ['POST'])]
     public function consulta(Request $request, ConsultaIndividualService $service): JsonResponse
     {
@@ -24,7 +25,8 @@ class IndividualController extends AbstractController
             (string) ($data['tipo_placa'] ?? ''),
             (string) ($data['placa'] ?? ''),
             (string) ($data['usuario'] ?? ''),
-            (string) ($data['pass'] ?? '')
+            (string) ($data['pass'] ?? ''),
+            (string)($request->getClientIp() ?? '')
         );
 
         return $this->json($result);
@@ -38,8 +40,8 @@ class IndividualController extends AbstractController
         $remisiones = is_array($data['remisiones'] ?? null) ? $data['remisiones'] : [];
         $usuario    = (string)($data['usuario'] ?? '');
         $pass       = (string)($data['pass'] ?? '');
-
-        $result = $service->execute($remisiones, $usuario, $pass);
+        $ip         = (string)($request->getClientIp() ?? '');
+        $result = $service->execute($remisiones, $usuario, $pass, $ip);
 
         return new JsonResponse($result, isset($result['error']) ? 400 : 200);
     }
@@ -51,11 +53,13 @@ class IndividualController extends AbstractController
 
         // Obtención de datos desde el body
         $remisiones = is_array($data['remisiones'] ?? null) ? $data['remisiones'] : [];
+        $documento  = (string)($data['documento'] ?? '');
         $usuario    = (string)($data['usuario'] ?? '');
         $pass       = (string)($data['pass'] ?? '');
+        $ip         = (string)($request->getClientIp() ?? '');
 
         // Llamar al servicio de reversión
-        $result = $service->execute($remisiones, $usuario, $pass);
+        $result = $service->execute($remisiones, $documento, $usuario, $pass, $ip);
 
         // Enviar el resultado, dependiendo de si hubo error o no
         return new JsonResponse($result, isset($result['error']) ? 400 : 200);
@@ -71,9 +75,10 @@ class IndividualController extends AbstractController
         $placa     = (string) ($data['placa'] ?? '');
         $usuario   = (string) ($data['usuario'] ?? '');
         $clave     = (string) ($data['clave'] ?? '');
+        $ip         = (string)($request->getClientIp() ?? '');
 
         // Llamar al servicio de total consulta
-        $result = $service->execute($tipoPlaca, $placa, $usuario, $clave);
+        $result = $service->execute($tipoPlaca, $placa, $usuario, $clave, $ip);
 
         // Devolver la respuesta
         return new JsonResponse($result, isset($result['error']) ? 400 : 200);
@@ -88,9 +93,10 @@ class IndividualController extends AbstractController
         $remisiones = is_array($data['remisiones'] ?? null) ? $data['remisiones'] : [];
         $usuario    = (string)($data['usuario'] ?? '');
         $pass       = (string)($data['pass'] ?? '');
+        $ip         = (string)($request->getClientIp() ?? '');
 
         // Llamar al servicio de total pago
-        $result = $service->execute($remisiones, $usuario, $pass);
+        $result = $service->execute($remisiones, $usuario, $pass, $ip);
 
         // Devolver la respuesta
         return new JsonResponse($result, isset($result['error']) ? 400 : 200);
