@@ -220,6 +220,7 @@ class ReversionIndividualService
                 codRespuesta: '000',
                 tipoPlaca: $tipoPlaca,
                 placa: $placa,
+                comentarios: $message,
                 doc: $documento
             );
             $this->commitBitacora();
