@@ -252,7 +252,7 @@ class SoapController extends AbstractController
             $tipoPlaca = trim($xpath->evaluate('string(./Tipo_Placa)', $opNode));
             $placa     = trim($xpath->evaluate('string(./Placa)', $opNode));
             $usuario   = trim($xpath->evaluate('string(./Usuario)', $opNode));
-            $clave     = trim($xpath->evaluate('string(./Clave)', $opNode));
+            $clave     = trim($xpath->evaluate('string(./Pass)', $opNode));
 
             $result = $TotalConsultaService->execute($tipoPlaca, $placa, $usuario, $clave, $ip);
 
@@ -280,23 +280,24 @@ class SoapController extends AbstractController
         // (5) TOTAL PAGO
         // =========================
         if ($opName === 'totalpago') {
-            $usuario = trim($xpath->evaluate('string(./Usuario)', $opNode));
-            $pass    = trim($xpath->evaluate('string(./Pass)', $opNode));
+            $tipoPlaca      = trim($xpath->evaluate('string(./Tipo_Placa)', $opNode));
+            $placa          = trim($xpath->evaluate('string(./Placa)', $opNode));
+            $total          = trim($xpath->evaluate('string(./Total)', $opNode));
+            $noReferencia   = trim($xpath->evaluate('string(./No_Referencia)', $opNode));
+            $noAutorizacion = trim($xpath->evaluate('string(./No_Autorizacion)', $opNode));
+            $usuario        = trim($xpath->evaluate('string(./Usuario)', $opNode));
+            $pass           = trim($xpath->evaluate('string(./Pass)', $opNode));
 
-            $remisiones = [];
-            $remNodes = $xpath->query('./Remisiones/Remision', $opNode);
-            foreach ($remNodes as $rNode) {
-                if (!$rNode instanceof \DOMElement) continue;
-                $remisiones[] = [
-                    'serie'         => trim($xpath->evaluate('string(./serie)', $rNode)),
-                    'remision'      => trim($xpath->evaluate('string(./remision)', $rNode)),
-                    'total'         => trim($xpath->evaluate('string(./total)', $rNode)),
-                    'no_referencia' => trim($xpath->evaluate('string(./no_referencia)', $rNode)),
-                    'no_autorizacion'=> trim($xpath->evaluate('string(./no_autorizacion)', $rNode)),
-                ];
-            }
-
-            $result = $TotalPagoService->execute($remisiones, $usuario, $pass, $ip);
+            $result = $TotalPagoService->execute(
+                $tipoPlaca,
+                $placa,
+                $total,
+                $noReferencia,
+                $noAutorizacion,
+                $usuario,
+                $pass,
+                $ip
+            );
 
             if (isset($result['error'])) {
                 $out = '<ERROR>'
@@ -307,16 +308,49 @@ class SoapController extends AbstractController
                 return $this->soapWrap($out, 200);
             }
 
-            // Respuesta esperada
-            $doc = (string)($result['total_pago']['doc'] ?? '');
-            $cod = (string)($result['total_pago']['cod'] ?? '');
+            $doc     = (string)($result['total_pago']['doc'] ?? '');
+            $cod     = (string)($result['total_pago']['cod'] ?? '');
             $mensaje = (string)($result['total_pago']['mensaje'] ?? '');
 
             $out = '<REMISION>'
                 . '<DOC>' . htmlspecialchars($doc) . '</DOC>'
                 . '<COD>' . htmlspecialchars($cod) . '</COD>'
-                . '<MENSAJE>' . htmlspecialchars($mensaje) . '</MENSAJE>'
-                . '</REMISION>';
+                . '<MENSAJE>' . htmlspecialchars($mensaje) . '</MENSAJE>';
+
+            if (!empty($result['procesadas']) || !empty($result['no_procesadas'])) {
+                $out .= '<DETALLE>';
+
+                if (!empty($result['procesadas'])) {
+                    $out .= '<PROCESADAS>';
+                    foreach ($result['procesadas'] as $p) {
+                        $out .= '<ITEM>'
+                            . '<SERIE>' . htmlspecialchars((string)($p['serie'] ?? '')) . '</SERIE>'
+                            . '<REMISION>' . htmlspecialchars((string)($p['remision'] ?? '')) . '</REMISION>'
+                            . '<DOCUMENTO>' . htmlspecialchars((string)($p['documento'] ?? '')) . '</DOCUMENTO>'
+                            . '<COD>' . htmlspecialchars((string)($p['codigo'] ?? '')) . '</COD>'
+                            . '<MENSAJE>' . htmlspecialchars((string)($p['mensaje'] ?? '')) . '</MENSAJE>'
+                            . '</ITEM>';
+                    }
+                    $out .= '</PROCESADAS>';
+                }
+
+                if (!empty($result['no_procesadas'])) {
+                    $out .= '<NO_PROCESADAS>';
+                    foreach ($result['no_procesadas'] as $np) {
+                        $out .= '<ITEM>'
+                            . '<SERIE>' . htmlspecialchars((string)($np['serie'] ?? '')) . '</SERIE>'
+                            . '<REMISION>' . htmlspecialchars((string)($np['remision'] ?? '')) . '</REMISION>'
+                            . '<COD>' . htmlspecialchars((string)($np['codigo'] ?? '')) . '</COD>'
+                            . '<MENSAJE>' . htmlspecialchars((string)($np['mensaje'] ?? '')) . '</MENSAJE>'
+                            . '</ITEM>';
+                    }
+                    $out .= '</NO_PROCESADAS>';
+                }
+
+                $out .= '</DETALLE>';
+            }
+
+            $out .= '</REMISION>';
 
             return $this->soapWrap($out, 200);
         }

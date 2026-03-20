@@ -42,7 +42,7 @@ class ConsultaIndividualService
             return [
                 'error' => [
                     'cod' => '001',
-                    'mensaje' => 'USUARIO O PASSWORD INVALIDO',
+                    'mensaje' => 'USUARIO Y/O PASSWORD INVALIDO',
                 ],
             ];
         }
@@ -68,7 +68,7 @@ class ConsultaIndividualService
             return [
                 'error' => [
                     'cod' => '002',
-                    'mensaje' => 'PLACA NO VALIDA',
+                    'mensaje' => 'PLACA NO ES VALIDA',
                 ],
             ];
         }

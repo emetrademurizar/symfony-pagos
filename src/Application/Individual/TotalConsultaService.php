@@ -68,7 +68,7 @@ class TotalConsultaService
             return [
                 'error' => [
                     'cod' => '002',
-                    'mensaje' => 'PLACA NO VALIDA',
+                    'mensaje' => 'PLACA NO ES VALIDA',
                 ],
             ];
         }

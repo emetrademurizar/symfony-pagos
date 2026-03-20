@@ -44,44 +44,9 @@ class PagoIndividualService
             ];
         }
 
-        $codigoUsuario = $userData['codigo'];
-        $nombreUsuario = $userData['nombre_banco'] ?? '';
+        $caja = $userData['CAJA'] ?? '';
 
         if (count($remisiones) === 0) {
-            return [
-                'remision' => [
-                    'doc' => '',
-                    'cod' => '004',
-                    'mensaje' => 'TRANSACCION NO PROCESADA',
-                ],
-            ];
-        }
-
-        $primera = $remisiones[0];
-        $noReferencia = trim((string)($primera['no_referencia'] ?? ''));
-        $noAutorizacion = trim((string)($primera['no_autorizacion'] ?? ''));
-
-        if ($noReferencia === '' || $noAutorizacion === '') {
-            return [
-                'remision' => [
-                    'doc' => '',
-                    'cod' => '004',
-                    'mensaje' => 'TRANSACCION NO PROCESADA',
-                ],
-            ];
-        }
-
-        try {
-            if ($this->bitacora->existeTransaccion($noReferencia, $noAutorizacion)) {
-                return [
-                    'remision' => [
-                        'doc' => '',
-                        'cod' => '002',
-                        'mensaje' => 'DATOS DE TRANSACCON PROCESADOS CON ANTERIORIDAD',
-                    ],
-                ];
-            }
-        } catch (\Throwable) {
             return [
                 'remision' => [
                     'doc' => '',
@@ -135,9 +100,8 @@ class PagoIndividualService
                 // Si ya hubo un error antes, esta remisión ya no se intenta pagar.
                 if ($detener) {
                     $this->bitacora->bitacora(
-                        codigo: $codigoUsuario,
                         ip: $ip,
-                        usuario: $nombreUsuario,
+                        usuario: $usuario,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -163,9 +127,8 @@ class PagoIndividualService
 
                 if ($serie === '' || $remision === '' || $monto <= 0) {
                     $this->bitacora->bitacora(
-                        codigo: $codigoUsuario,
                         ip: $ip,
-                        usuario: $nombreUsuario,
+                        usuario: $usuario,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -190,14 +153,97 @@ class PagoIndividualService
                     continue;
                 }
 
+                if ($referencia === '' || $autorizacion === '') {
+                    $this->bitacora->bitacora(
+                        ip: $ip,
+                        usuario: $usuario,
+                        serie: $serie,
+                        remision: $remision,
+                        referencia: $referencia,
+                        autorizacion: $autorizacion,
+                        operacion: self::TIPO_OPERACION_BITACORA,
+                        totalOperacion: (float)$totalOperacion,
+                        totalPago: (float)$monto,
+                        estatus: 'ERROR',
+                        codRespuesta: '004',
+                        tipoPlaca: $tipoPlaca,
+                        placa: $placa
+                    );
+
+                    $noProcesadas[] = [
+                        'serie' => $serie,
+                        'remision' => $remision,
+                        'codigo' => '004',
+                        'mensaje' => 'TRANSACCION NO PROCESADA NO HAY REFERENCIA O AUTORIZACION',
+                    ];
+
+                    $detener = true;
+                    continue;
+                }
+                
+                try{
+                    if ($this->bitacora->existeTransaccion($serie, $remision, $referencia, $autorizacion)) {
+                        $this->bitacora->bitacora(
+                            ip: $ip,
+                            usuario: $usuario,
+                            serie: $serie,
+                            remision: $remision,
+                            referencia: $referencia,
+                            autorizacion: $autorizacion,
+                            operacion: self::TIPO_OPERACION_BITACORA,
+                            totalOperacion: (float)$totalOperacion,
+                            totalPago: (float)$monto,
+                            estatus: 'ERROR',
+                            codRespuesta: '002',
+                            tipoPlaca: $tipoPlaca,
+                            placa: $placa
+                        );
+
+                        $noProcesadas[] = [
+                            'serie' => $serie,
+                            'remision' => $remision,
+                            'codigo' => '002',
+                            'mensaje' => 'DATOS DE TRANSACCON PROCESADOS CON ANTERIORIDAD',
+                        ];
+
+                        $detener = true;
+                        continue;
+                    }
+                } catch (\Throwable) {
+                    $this->bitacora->bitacora(
+                        ip: $ip,
+                        usuario: $usuario,
+                        serie: $serie,
+                        remision: $remision,
+                        referencia: $referencia,
+                        autorizacion: $autorizacion,
+                        operacion: self::TIPO_OPERACION_BITACORA,
+                        totalOperacion: (float)$totalOperacion,
+                        totalPago: (float)$monto,
+                        estatus: 'ERROR',
+                        codRespuesta: '004',
+                        tipoPlaca: $tipoPlaca,
+                        placa: $placa
+                    );
+
+                    $noProcesadas[] = [
+                        'serie' => $serie,
+                        'remision' => $remision,
+                        'codigo' => '004',
+                        'mensaje' => 'TRANSACCION NO PROCESADA',
+                    ];
+
+                    $detener = true;
+                    continue;
+                }
+
                 $numeroRecibo = $index === 0 ? '0' : $documentoInicial;
 
                 $stmtPago = oci_parse($oci, $sqlPago);
                 if ($stmtPago === false) {
                     $this->bitacora->bitacora(
-                        codigo: $codigoUsuario,
                         ip: $ip,
-                        usuario: $nombreUsuario,
+                        usuario: $usuario,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -223,7 +269,7 @@ class PagoIndividualService
                 }
 
                 $tipoOpera = self::TIPO_OPERA;
-                $usuarioGraba = $nombreUsuario;
+                $usuarioGraba = $caja;
                 $documentoSalida = '';
 
                 oci_bind_by_name($stmtPago, ':p_serie', $serie);
@@ -244,9 +290,8 @@ class PagoIndividualService
                     $mensaje = $e['message'] ?? 'TRANSACCION NO PROCESADA';
 
                     $this->bitacora->bitacora(
-                        codigo: $codigoUsuario,
                         ip: $ip,
-                        usuario: $nombreUsuario,
+                        usuario: $usuario,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -307,22 +352,7 @@ class PagoIndividualService
                     ];
 
                     $detener = true;
-                } else {
-                    $codigoRespuesta = '004';
-                    $estatus = 'ERROR';
-                    $mensajeRespuesta = $documentoSalida !== '' ? $documentoSalida : 'TRANSACCION NO PROCESADA';
-
-                    $noProcesadas[] = [
-                        'serie' => $serie,
-                        'remision' => $remision,
-                        'codigo' => '004',
-                        'mensaje' => $mensajeRespuesta,
-                    ];
-
-                    $detener = true;
-                }
-                
-                /* elseif (
+                }  elseif (
                     str_contains(strtoupper($documentoSalida), 'ANTERIORIDAD') ||
                     str_contains(strtoupper($documentoSalida), 'PROCESADOS CON ANTERIORIDAD')
                 ) {
@@ -351,13 +381,12 @@ class PagoIndividualService
                     ];
 
                     $detener = true;
-                }*/
+                }
 
                 // Bitácora siempre
                 $this->bitacora->bitacora(
-                    codigo: $codigoUsuario,
                     ip: $ip,
-                    usuario: $nombreUsuario,
+                    usuario: $usuario,
                     serie: $serie,
                     remision: $remision,
                     referencia: $referencia,
@@ -368,7 +397,8 @@ class PagoIndividualService
                     estatus: $estatus,
                     codRespuesta: $codigoRespuesta,
                     tipoPlaca: $tipoPlaca,
-                    placa: $placa
+                    placa: $placa,
+                    doc: $documentoSalida
                 );
             }
 

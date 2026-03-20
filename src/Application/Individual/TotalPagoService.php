@@ -18,20 +18,29 @@ class TotalPagoService
     ) {}
 
     /**
-     * @param array<int, array{
-     *   serie?: string,
-     *   remision?: string,
-     *   numero?: string,
-     *   total?: float|int|string,
-     *   valor?: float|int|string,
-     *   no_referencia?: int|string,
-     *   no_autorizacion?: int|string,
-     *   tipo_placa?: string,
-     *   placa?: string
-     * }> $remisiones
+     * @return array{
+     *   error?: array{cod:string,mensaje:string},
+     *   total_pago?: array{doc:string,cod:string,mensaje:string},
+     *   procesadas?: array<int, array{serie:string,remision:string,documento:string,codigo:string,mensaje:string}>,
+     *   no_procesadas?: array<int, array{serie:string,remision:string,codigo:string,mensaje:string}>
+     * }
      */
-    public function execute(array $remisiones, string $usuario, string $pass, string $ip = ''): array
-    {
+    public function execute(
+        string $tipoPlaca,
+        string $placa,
+        float|int|string $total,
+        string $noReferencia,
+        string $noAutorizacion,
+        string $usuario,
+        string $pass,
+        string $ip = ''
+    ): array {
+        $tipoPlaca = strtoupper(trim($tipoPlaca));
+        $placa = strtoupper(trim($placa));
+        $noReferencia = trim($noReferencia);
+        $noAutorizacion = trim($noAutorizacion);
+        $totalCobrado = (float)$total;
+
         $userData = $this->validator->validUser($usuario, $pass);
 
         if (!$userData) {
@@ -43,22 +52,16 @@ class TotalPagoService
             ];
         }
 
-        $codigoUsuario = $userData['codigo'];
-        $nombreUsuario = $userData['nombre_banco'] ?? '';
+        $caja = $userData['CAJA'] ?? $userData['caja'] ?? '';
 
-        if (count($remisiones) === 0) {
+        if ($tipoPlaca === '' || !$this->validator->validPlaca($placa)) {
             return [
-                'total_pago' => [
-                    'doc' => '',
-                    'cod' => '004',
-                    'mensaje' => 'SIN REMISIONES PENDIENTES DE PAGO',
+                'error' => [
+                    'cod' => '002',
+                    'mensaje' => 'LA PLACA NO ES VALIDA',
                 ],
             ];
         }
-
-        $primera = $remisiones[0];
-        $noReferencia = trim((string)($primera['no_referencia'] ?? ''));
-        $noAutorizacion = trim((string)($primera['no_autorizacion'] ?? ''));
 
         if ($noReferencia === '' || $noAutorizacion === '') {
             return [
@@ -70,16 +73,82 @@ class TotalPagoService
             ];
         }
 
+        $sqlConsulta = <<<'SQL'
+            WITH placas_filtradas AS (
+                SELECT
+                    CASE
+                        WHEN tipo_placa = :tipo AND placa_actual = :placa
+                            THEN tipo_placa_anterior || placa_anterior
+                        WHEN tipo_placa_anterior = :tipo AND placa_anterior = :placa
+                            THEN tipo_placa || placa_actual
+                    END AS placa_completa
+                FROM tb_empalme_placas
+                UNION
+                SELECT :tipo || :placa FROM dual
+            ),
+            remisiones_filtradas AS (
+                SELECT *
+                FROM tb_remisiones_temp
+                WHERE (tipo_placa || placa) IN (SELECT placa_completa FROM placas_filtradas)
+                  AND saldo > 0
+            )
+            SELECT
+                rt.CIUDAD,
+                COALESCE(r.agente_emitida, cp.agente) AS agente,
+                CASE COALESCE(cp.estatus, r.status)
+                    WHEN 'C' THEN 'COLOCADO'
+                    WHEN 'T' THEN 'ASIGNADO LIBERO'
+                    WHEN 'P' THEN 'PAGADO'
+                    WHEN 'L' THEN 'LIBERADO'
+                    WHEN 'N' THEN 'NO PAGADO'
+                END AS estado,
+                rt.SERIE,
+                rt.REMISION,
+                rt.TIPO_PLACA,
+                rt.PLACA,
+                rt.VALOR,
+                TO_CHAR(rt.FECHA, 'DD/MM/YYYY') AS fecha,
+                rt.TOTAL,
+                rt.SALDO,
+                CASE rt.serie
+                    WHEN 'X' THEN REPLACE(COALESCE(rt.LUGAR, COALESCE(cp.lugar, c.descripcion)), '_', ' ')
+                    WHEN 'W' THEN REPLACE(COALESCE(rt.LUGAR, ins.lugar), '_', ' ')
+                    ELSE REPLACE(COALESCE(rt.LUGAR, r.lugar), '_', ' ') || '\nArticulos: ' ||
+                         LISTAGG(TO_CHAR(ARTICULO) || ' - ' || TRIM(NUMERAL), ', ')
+                         WITHIN GROUP (ORDER BY ARTICULO)
+                END AS lugar,
+                rt.NOMBRE,
+                rt.FECHA_NOTIFICADA,
+                LISTAGG(TO_CHAR(ARTICULO) || ' - ' || TRIM(NUMERAL), ', ')
+                    WITHIN GROUP (ORDER BY ARTICULO) AS ARTICULOS
+            FROM remisiones_filtradas rt
+            LEFT JOIN emt_detalles_infraccion det
+                ON rt.remision = det.remision AND rt.serie = det.serie
+            LEFT JOIN emt_reglamento_de_transito reg
+                ON det.regla = reg.regla
+            LEFT JOIN emt_remisiones r
+                ON r.serie = rt.serie AND r.REMISION = rt.remision
+            LEFT JOIN tb_cepos_pmt cp
+                ON rt.serie = 'X' AND cp.cepo = rt.remision
+            LEFT JOIN emt_cruceros c
+                ON cp.crucero = c.crucero
+            LEFT JOIN emt_vehiculos v
+                ON rt.tipo_placa = v.vehi_tipo_placa AND rt.placa = v.placa
+            LEFT JOIN tb_remisiones_instituciones ins
+                ON rt.serie = 'W' AND ins.remision = rt.remision AND v.vehiculo = ins.vehiculo
+            GROUP BY
+                rt.tipo_placa, rt.placa, rt.ciudad, rt.serie, rt.remision,
+                rt.valor, rt.fecha, rt.total, rt.saldo, rt.lugar, rt.nombre,
+                rt.fecha_notificada, c.descripcion, cp.lugar, ins.lugar, r.lugar,
+                r.agente_emitida, cp.agente, cp.estatus, r.status
+            ORDER BY rt.fecha_notificada DESC NULLS LAST, rt.fecha DESC
+        SQL;
+
         try {
-            if ($this->bitacora->existeTransaccion($noReferencia, $noAutorizacion)) {
-                return [
-                    'total_pago' => [
-                        'doc' => '',
-                        'cod' => '005',
-                        'mensaje' => 'DATOS DE TRANSACCION PROCESADOS CON ANTERIORIDAD',
-                    ],
-                ];
-            }
+            $rows = $this->conn->fetchAllAssociative($sqlConsulta, [
+                'tipo' => $tipoPlaca,
+                'placa' => $placa,
+            ]);
         } catch (\Throwable) {
             return [
                 'total_pago' => [
@@ -90,9 +159,47 @@ class TotalPagoService
             ];
         }
 
+        if (!$rows) {
+            return [
+                'error' => [
+                    'cod' => '004',
+                    'mensaje' => 'SIN REMISIONES PENDIENTES DE PAGO',
+                ],
+            ];
+        }
+
+        $remisiones = [];
+        $totalPendiente = 0.0;
+
+        foreach ($rows as $row) {
+            $montoRemision = (float)($row['SALDO'] ?? $row['saldo'] ?? 0);
+
+            $remisiones[] = [
+                'serie' => (string)($row['SERIE'] ?? $row['serie'] ?? ''),
+                'remision' => (string)($row['REMISION'] ?? $row['remision'] ?? ''),
+                'total' => $montoRemision,
+                'tipo_placa' => (string)($row['TIPO_PLACA'] ?? $row['tipo_placa'] ?? $tipoPlaca),
+                'placa' => (string)($row['PLACA'] ?? $row['placa'] ?? $placa),
+                'no_referencia' => $noReferencia,
+                'no_autorizacion' => $noAutorizacion,
+            ];
+
+            $totalPendiente += $montoRemision;
+        }
+
+        if (round($totalPendiente, 2) !== round($totalCobrado, 2)) {
+            return [
+                'error' => [
+                    'cod' => '003',
+                    'mensaje' => 'EL PAGO NO ES EQUIVALENTE AL SALDO PENDIENTE',
+                ],
+            ];
+        }
+
+
         $totalOperacion = 0.0;
         foreach ($remisiones as $r) {
-            $totalOperacion += (float)($r['total'] ?? $r['valor'] ?? 0);
+            $totalOperacion += (float)($r['total'] ?? 0);
         }
 
         $oci = null;
@@ -123,30 +230,29 @@ class TotalPagoService
 
             foreach ($remisiones as $index => $r) {
                 $serie = strtoupper(trim((string)($r['serie'] ?? '')));
-                $remision = trim((string)($r['remision'] ?? $r['numero'] ?? ''));
-                $monto = (float)($r['total'] ?? $r['valor'] ?? 0);
-                $tipoPlaca = strtoupper(trim((string)($r['tipo_placa'] ?? '')));
-                $placa = strtoupper(trim((string)($r['placa'] ?? '')));
+                $remision = trim((string)($r['remision'] ?? ''));
+                $monto = (float)($r['total'] ?? 0);
+                $tipoPlacaRem = strtoupper(trim((string)($r['tipo_placa'] ?? '')));
+                $placaRem = strtoupper(trim((string)($r['placa'] ?? '')));
                 $referencia = trim((string)($r['no_referencia'] ?? ''));
                 $autorizacion = trim((string)($r['no_autorizacion'] ?? ''));
                 $nombre = '';
 
                 if ($detener) {
                     $this->bitacora->bitacora(
-                        codigo: $codigoUsuario,
                         ip: $ip,
-                        usuario: $nombreUsuario,
+                        usuario: $usuario,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
                         autorizacion: $autorizacion,
                         operacion: self::TIPO_OPERACION_BITACORA,
-                        totalOperacion: (float)$totalOperacion,
-                        totalPago: (float)$monto,
+                        totalOperacion: $totalOperacion,
+                        totalPago: $monto,
                         estatus: 'ERROR',
                         codRespuesta: '007',
-                        tipoPlaca: $tipoPlaca,
-                        placa: $placa
+                        tipoPlaca: $tipoPlacaRem,
+                        placa: $placaRem
                     );
 
                     $noProcesadas[] = [
@@ -161,20 +267,19 @@ class TotalPagoService
 
                 if ($serie === '' || $remision === '' || $monto <= 0) {
                     $this->bitacora->bitacora(
-                        codigo: $codigoUsuario,
                         ip: $ip,
-                        usuario: $nombreUsuario,
+                        usuario: $usuario,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
                         autorizacion: $autorizacion,
                         operacion: self::TIPO_OPERACION_BITACORA,
-                        totalOperacion: (float)$totalOperacion,
-                        totalPago: (float)$monto,
+                        totalOperacion: $totalOperacion,
+                        totalPago: $monto,
                         estatus: 'ERROR',
                         codRespuesta: '007',
-                        tipoPlaca: $tipoPlaca,
-                        placa: $placa
+                        tipoPlaca: $tipoPlacaRem,
+                        placa: $placaRem
                     );
 
                     $noProcesadas[] = [
@@ -188,25 +293,108 @@ class TotalPagoService
                     continue;
                 }
 
-                $numeroRecibo = $index === 0 ? '0' : $documentoInicial;
-
-                $stmtPago = oci_parse($oci, $sqlPago);
-                if ($stmtPago === false) {
+                if($referencia === '' || $autorizacion === '') {
                     $this->bitacora->bitacora(
-                        codigo: $codigoUsuario,
                         ip: $ip,
-                        usuario: $nombreUsuario,
+                        usuario: $usuario,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
                         autorizacion: $autorizacion,
                         operacion: self::TIPO_OPERACION_BITACORA,
-                        totalOperacion: (float)$totalOperacion,
-                        totalPago: (float)$monto,
+                        totalOperacion: $totalOperacion,
+                        totalPago: $monto,
                         estatus: 'ERROR',
                         codRespuesta: '007',
-                        tipoPlaca: $tipoPlaca,
-                        placa: $placa
+                        tipoPlaca: $tipoPlacaRem,
+                        placa: $placaRem
+                    );
+
+                    $noProcesadas[] = [
+                        'serie' => $serie,
+                        'remision' => $remision,
+                        'codigo' => '007',
+                        'mensaje' => 'TRANSACCION NO PROCESADA: REFERENCIA Y/O AUTORIZACION INVALIDAS',
+                    ];
+
+                    $detener = true;
+                    continue;
+                }
+
+                try{
+                    if($this->bitacora->existeTransaccion($serie, $remision, $referencia, $autorizacion)) {
+                        $this->bitacora->bitacora(
+                            ip: $ip,
+                            usuario: $usuario,
+                            serie: $serie,
+                            remision: $remision,
+                            referencia: $referencia,
+                            autorizacion: $autorizacion,
+                            operacion: self::TIPO_OPERACION_BITACORA,
+                            totalOperacion: $totalOperacion,
+                            totalPago: $monto,
+                            estatus: 'ERROR',
+                            codRespuesta: '005',
+                            tipoPlaca: $tipoPlacaRem,
+                            placa: $placaRem
+                        );
+
+                        $noProcesadas[] = [
+                            'serie' => $serie,
+                            'remision' => $remision,
+                            'codigo' => '005',
+                            'mensaje' => 'DATOS DE TRANSACCION PROCESADOS CON ANTERIORIDAD',
+                        ];
+
+                        $detener = true;
+                        continue;
+                    }
+                }catch(\Throwable $e) {
+                    $this->bitacora->bitacora(
+                        ip: $ip,
+                        usuario: $usuario,
+                        serie: $serie,
+                        remision: $remision,
+                        referencia: $referencia,
+                        autorizacion: $autorizacion,
+                        operacion: self::TIPO_OPERACION_BITACORA,
+                        totalOperacion: $totalOperacion,
+                        totalPago: $monto,
+                        estatus: 'ERROR',
+                        codRespuesta: '007',
+                        tipoPlaca: $tipoPlacaRem,
+                        placa: $placaRem
+                    );
+
+                    $noProcesadas[] = [
+                        'serie' => $serie,
+                        'remision' => $remision,
+                        'codigo' => '007',
+                        'mensaje' => 'TRANSACCION NOPROCESADA',
+                    ];
+
+                    $detener = true;
+                    continue;
+                }
+
+                $numeroRecibo = $index === 0 ? '0' : $documentoInicial;
+
+                $stmtPago = oci_parse($oci, $sqlPago);
+                if ($stmtPago === false) {
+                    $this->bitacora->bitacora(
+                        ip: $ip,
+                        usuario: $usuario,
+                        serie: $serie,
+                        remision: $remision,
+                        referencia: $referencia,
+                        autorizacion: $autorizacion,
+                        operacion: self::TIPO_OPERACION_BITACORA,
+                        totalOperacion: $totalOperacion,
+                        totalPago: $monto,
+                        estatus: 'ERROR',
+                        codRespuesta: '007',
+                        tipoPlaca: $tipoPlacaRem,
+                        placa: $placaRem
                     );
 
                     $noProcesadas[] = [
@@ -221,7 +409,7 @@ class TotalPagoService
                 }
 
                 $tipoOpera = self::TIPO_OPERA;
-                $usuarioGraba = $nombreUsuario;
+                $usuarioGraba = $caja;
                 $documentoSalida = '';
 
                 oci_bind_by_name($stmtPago, ':p_serie', $serie);
@@ -242,20 +430,19 @@ class TotalPagoService
                     $mensaje = $e['message'] ?? 'TRANSACCION NO PROCESADA';
 
                     $this->bitacora->bitacora(
-                        codigo: $codigoUsuario,
                         ip: $ip,
-                        usuario: $nombreUsuario,
+                        usuario: $usuario,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
                         autorizacion: $autorizacion,
                         operacion: self::TIPO_OPERACION_BITACORA,
-                        totalOperacion: (float)$totalOperacion,
-                        totalPago: (float)$monto,
+                        totalOperacion: $totalOperacion,
+                        totalPago: $monto,
                         estatus: 'ERROR',
                         codRespuesta: '007',
-                        tipoPlaca: $tipoPlaca,
-                        placa: $placa
+                        tipoPlaca: $tipoPlacaRem,
+                        placa: $placaRem
                     );
 
                     $noProcesadas[] = [
@@ -295,7 +482,7 @@ class TotalPagoService
                 } elseif (str_contains(strtoupper($documentoSalida), 'YA FUE PAGADA')) {
                     $codigoRespuesta = '006';
                     $estatus = 'ERROR';
-                    $mensajeRespuesta = 'REMISION YA FUE PAGADA';
+                    $mensajeRespuesta = 'LA REMISION YA FUE PAGADA';
 
                     $noProcesadas[] = [
                         'serie' => $serie,
@@ -337,20 +524,20 @@ class TotalPagoService
                 }
 
                 $this->bitacora->bitacora(
-                    codigo: $codigoUsuario,
                     ip: $ip,
-                    usuario: $nombreUsuario,
+                    usuario: $usuario,
                     serie: $serie,
                     remision: $remision,
                     referencia: $referencia,
                     autorizacion: $autorizacion,
                     operacion: self::TIPO_OPERACION_BITACORA,
-                    totalOperacion: (float)$totalOperacion,
-                    totalPago: (float)$monto,
+                    totalOperacion: $totalOperacion,
+                    totalPago: $monto,
                     estatus: $estatus,
                     codRespuesta: $codigoRespuesta,
-                    tipoPlaca: $tipoPlaca,
-                    placa: $placa
+                    tipoPlaca: $tipoPlacaRem,
+                    placa: $placaRem,
+                    doc: $documentoSalida,
                 );
             }
 

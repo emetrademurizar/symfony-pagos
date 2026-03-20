@@ -74,7 +74,7 @@ class IndividualController extends AbstractController
         $tipoPlaca = (string) ($data['tipo_placa'] ?? '');
         $placa     = (string) ($data['placa'] ?? '');
         $usuario   = (string) ($data['usuario'] ?? '');
-        $clave     = (string) ($data['clave'] ?? '');
+        $clave     = (string) ($data['pass'] ?? '');
         $ip         = (string)($request->getClientIp() ?? '');
 
         // Llamar al servicio de total consulta
@@ -89,16 +89,26 @@ class IndividualController extends AbstractController
     {
         $data = json_decode($request->getContent(), true) ?? [];
 
-        // Obtener los parámetros desde el body
-        $remisiones = is_array($data['remisiones'] ?? null) ? $data['remisiones'] : [];
-        $usuario    = (string)($data['usuario'] ?? '');
-        $pass       = (string)($data['pass'] ?? '');
-        $ip         = (string)($request->getClientIp() ?? '');
+        $tipoPlaca      = (string)($data['tipo_placa'] ?? '');
+        $placa          = (string)($data['placa'] ?? '');
+        $total          = $data['total'] ?? 0;
+        $noReferencia   = (string)($data['no_referencia'] ?? '');
+        $noAutorizacion = (string)($data['no_autorizacion'] ?? '');
+        $usuario        = (string)($data['usuario'] ?? '');
+        $pass           = (string)($data['pass'] ?? '');
+        $ip             = (string)($request->getClientIp() ?? '');
 
-        // Llamar al servicio de total pago
-        $result = $service->execute($remisiones, $usuario, $pass, $ip);
+        $result = $service->execute(
+            $tipoPlaca,
+            $placa,
+            $total,
+            $noReferencia,
+            $noAutorizacion,
+            $usuario,
+            $pass,
+            $ip
+        );
 
-        // Devolver la respuesta
         return new JsonResponse($result, isset($result['error']) ? 400 : 200);
     }
 

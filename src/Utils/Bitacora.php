@@ -24,7 +24,8 @@ class Bitacora
         string $codRespuesta,
         ?string $tipoPlaca,
         ?string $placa,
-        ?string $comentarios = null
+        ?string $comentarios = null,
+        ?string $doc = null,
     ): bool {
         $serie = !empty($serie) ? $serie : '';
         $remision = !empty($remision) ? $remision : '';
@@ -33,6 +34,7 @@ class Bitacora
         $tipoPlaca = !empty($tipoPlaca) ? $tipoPlaca : '';
         $placa = !empty($placa) ? $placa : '';
         $comentarios = !empty($comentarios) ? $comentarios : '';
+        $doc = !empty($doc) ? $doc : '';
         $usuario = (int)$usuario;
 
         $transaccion = $this->nextBitacora();
@@ -46,6 +48,7 @@ class Bitacora
                 USUARIO,
                 SERIE,
                 REMISION,
+                DOCUMENTO,
                 NO_REFERENCIA,
                 NO_AUTORIZA,
                 TIPO_OPERACION,
@@ -63,6 +66,7 @@ class Bitacora
                 :USUARIO,
                 :SERIE,
                 :REMISION,
+                :DOCUMENTO,
                 :NO_REFERENCIA,
                 :NO_AUTORIZACION,
                 :TIPO_OPERACION,
@@ -88,6 +92,7 @@ class Bitacora
         oci_bind_by_name($stm, ':USUARIO', $usuario);
         oci_bind_by_name($stm, ':SERIE', $serie);
         oci_bind_by_name($stm, ':REMISION', $remision);
+        oci_bind_by_name($stm, ':DOCUMENTO', $doc);
         oci_bind_by_name($stm, ':NO_REFERENCIA', $referencia);
         oci_bind_by_name($stm, ':NO_AUTORIZACION', $autorizacion);
         oci_bind_by_name($stm, ':TIPO_OPERACION', $operacion);
@@ -138,15 +143,19 @@ class Bitacora
         return (int)($row['SIGUIENTE'] ?? 1);
     }
 
-    public function existeTransaccion(string $referencia, string $autorizacion): bool
+    public function existeTransaccion(string $serie, string $remision, string $referencia, string $autorizacion): bool
     {
         $oci = $this->conn->getNativeConnection();
 
         $sql = <<<'SQL'
             SELECT COUNT(*) AS TOTAL
             FROM HISTORIAL_BANCOS
-            WHERE NO_REFERENCIA = :referencia
+            WHERE SERIE = :serie
+            AND REMISION = :remision
+            AND NO_REFERENCIA = :referencia
             AND NO_AUTORIZA = :autorizacion
+            AND TIPO_OPERACION IN ('2', '5')
+            AND (ESTATUS = 'EXITOSO' OR CODIGO_RESPUESTA = '000')
         SQL;
 
         $stm = oci_parse($oci, $sql);
@@ -156,6 +165,8 @@ class Bitacora
             throw new \RuntimeException($e['message'] ?? 'ERROR AL PREPARAR CONSULTA DE BITACORA');
         }
 
+        oci_bind_by_name($stm, ':serie', $serie);
+        oci_bind_by_name($stm, ':remision', $remision);
         oci_bind_by_name($stm, ':referencia', $referencia);
         oci_bind_by_name($stm, ':autorizacion', $autorizacion);
 
