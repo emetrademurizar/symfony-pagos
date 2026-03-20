@@ -204,37 +204,25 @@ class SoapController extends AbstractController
         // =========================
 
         if ($opName === 'reversion') {
-            $usuario = trim($xpath->evaluate('string(./Usuario)', $opNode));
-            $pass    = trim($xpath->evaluate('string(./Pass)', $opNode));
+            $documento = trim($xpath->evaluate('string(./Documento)', $opNode));
+            $usuario   = trim($xpath->evaluate('string(./Usuario)', $opNode));
+            $pass      = trim($xpath->evaluate('string(./Pass)', $opNode));
+            $message   = trim($xpath->evaluate('string(./Message)', $opNode));
 
-            // Remisiones
-            $remisiones = [];
-            $remNodes = $xpath->query('./Remisiones/Remision', $opNode);
-            foreach ($remNodes as $rNode) {
-                if (!$rNode instanceof \DOMElement) continue;
-                $remisiones[] = [
-                    'serie'         => trim($xpath->evaluate('string(./serie)', $rNode)),
-                    'remision'      => trim($xpath->evaluate('string(./remision)', $rNode)),
-                    'total'         => trim($xpath->evaluate('string(./total)', $rNode)),
-                    'no_referencia' => trim($xpath->evaluate('string(./no_referencia)', $rNode)),
-                    'no_autorizacion'=> trim($xpath->evaluate('string(./no_autorizacion)', $rNode)),
-                ];
-            }
-
-            $result = $ReversionService->execute($remisiones, $usuario, $pass, $ip);
+            $result = $ReversionService->execute($documento, $usuario, $pass, $message, $ip);
 
             if (isset($result['error'])) {
                 $out = '<ERROR>'
-                    . '<COD>' . htmlspecialchars((string) $result['error']['cod']) . '</COD>'
-                    . '<MENSAJE>' . htmlspecialchars((string) $result['error']['mensaje']) . '</MENSAJE>'
+                    . '<COD>' . htmlspecialchars((string)$result['error']['cod']) . '</COD>'
+                    . '<MENSAJE>' . htmlspecialchars((string)$result['error']['mensaje']) . '</MENSAJE>'
                     . '</ERROR>';
 
                 return $this->soapWrap($out, 200);
             }
 
-            $doc = (string) ($result['reversion']['doc'] ?? '');
-            $cod = (string) ($result['reversion']['cod'] ?? '');
-            $mensaje = (string) ($result['reversion']['mensaje'] ?? '');
+            $doc = (string)($result['reversion']['doc'] ?? '');
+            $cod = (string)($result['reversion']['cod'] ?? '');
+            $mensaje = (string)($result['reversion']['mensaje'] ?? '');
 
             $out = '<REMISION>'
                 . '<DOC>' . htmlspecialchars($doc) . '</DOC>'

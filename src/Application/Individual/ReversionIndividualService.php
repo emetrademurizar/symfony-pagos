@@ -8,7 +8,6 @@ use App\Utils\Bitacora;
 
 class ReversionIndividualService
 {
-    // Ajustá este valor si reversión usa otro código en bitácora
     private const TIPO_OPERACION_BITACORA = '3';
     private const TIPO_OPERACION_PAQUETE  = 'N';
 
@@ -28,20 +27,11 @@ class ReversionIndividualService
         }
     }
 
-    /**
-     * @param array<int, array{
-     *   serie?: string,
-     *   remision?: string,
-     *   total?: float|int|string,
-     *   no_referencia?: int|string,
-     *   no_autorizacion?: int|string
-     * }> $remisiones
-     */
     public function execute(
-        array $remisiones,
         string $documento,
         string $usuario,
         string $pass,
+        string $message,
         string $ip = ''
     ): array {
         $documento = trim($documento);
@@ -57,10 +47,9 @@ class ReversionIndividualService
             ];
         }
 
-        $codigoUsuario = $userData['codigo'];
         $nombreUsuario = $userData['nombre_banco'] ?? '';
 
-        if (count($remisiones) === 0) {
+        if ($documento === '' || !ctype_digit($documento)) {
             $this->bitacora->bitacora(
                 ip: $ip,
                 usuario: $nombreUsuario,
@@ -74,30 +63,78 @@ class ReversionIndividualService
                 estatus: 'ERROR',
                 codRespuesta: '004',
                 tipoPlaca: '',
-                placa: ''
+                placa: '',
+                doc: $documento
             );
             $this->commitBitacora();
 
             return [
                 'reversion' => [
-                    'doc' => '',
+                    'doc' => $documento,
+                    'cod' => '004',
+                    'mensaje' => 'DOCUMENTO NO VALIDO',
+                ],
+            ];
+        }
+
+        try {
+            $pago = $this->bitacora->obtenerPagoPorDocumento($documento);
+        } catch (\Throwable $e) {
+            return [
+                'error' => [
+                    'cod' => '999',
+                    'mensaje' => 'ERROR CONEXION BD: ' . $e->getMessage(),
+                ],
+            ];
+        }
+
+        if ($pago === false) {
+            $this->bitacora->bitacora(
+                ip: $ip,
+                usuario: $nombreUsuario,
+                serie: '',
+                remision: '',
+                referencia: '',
+                autorizacion: '',
+                operacion: self::TIPO_OPERACION_BITACORA,
+                totalOperacion: 0,
+                totalPago: 0,
+                estatus: 'ERROR',
+                codRespuesta: '004',
+                tipoPlaca: '',
+                placa: '',
+                doc: $documento
+            );
+            $this->commitBitacora();
+
+            return [
+                'reversion' => [
+                    'doc' => $documento,
                     'cod' => '004',
                     'mensaje' => 'TRANSACCION NO PROCESADA',
                 ],
             ];
         }
 
-        $r = $remisiones[0];
+        $serie          = strtoupper(trim((string)($pago['serie'] ?? '')));
+        $remision       = trim((string)($pago['remision'] ?? ''));
+        $total          = (float)($pago['total'] ?? 0);
+        $noReferencia   = trim((string)($pago['no_referencia'] ?? ''));
+        $noAutorizacion = trim((string)($pago['no_autorizacion'] ?? ''));
+        $tipoPlaca      = strtoupper(trim((string)($pago['tipo_placa'] ?? '')));
+        $placa          = strtoupper(trim((string)($pago['placa'] ?? '')));
+        $fechaPagoRaw   = $pago['fecha'] ?? null;
 
-        $serie          = strtoupper(trim((string)($r['serie'] ?? '')));
-        $remision       = trim((string)($r['remision'] ?? ''));
-        $total          = (float)($r['total'] ?? 0);
-        $noReferencia   = trim((string)($r['no_referencia'] ?? ''));
-        $noAutorizacion = trim((string)($r['no_autorizacion'] ?? ''));
+        if ($fechaPagoRaw instanceof \DateTimeInterface) {
+            $fechaPago = $fechaPagoRaw->format('Y-m-d');
+        } else {
+            $timestamp = strtotime((string)$fechaPagoRaw);
+            $fechaPago = $timestamp ? date('Y-m-d', $timestamp) : '';
+        }
 
-        $doc = trim($serie . '-' . $remision, '-');
+        $hoy = date('Y-m-d');
 
-        if ($documento === '' || !is_numeric($documento)) {
+        if ($fechaPago === '' || $fechaPago !== $hoy) {
             $this->bitacora->bitacora(
                 ip: $ip,
                 usuario: $nombreUsuario,
@@ -110,16 +147,17 @@ class ReversionIndividualService
                 totalPago: $total,
                 estatus: 'ERROR',
                 codRespuesta: '004',
-                tipoPlaca: '',
-                placa: ''
+                tipoPlaca: $tipoPlaca,
+                placa: $placa,
+                doc: $documento
             );
             $this->commitBitacora();
 
             return [
                 'reversion' => [
-                    'doc' => $doc,
+                    'doc' => $documento,
                     'cod' => '004',
-                    'mensaje' => 'DOCUMENTO NO VALIDO',
+                    'mensaje' => 'TRANSACCION NO PROCESADA',
                 ],
             ];
         }
@@ -180,14 +218,15 @@ class ReversionIndividualService
                 totalPago: $total,
                 estatus: 'EXITOSO',
                 codRespuesta: '000',
-                tipoPlaca: '',
-                placa: ''
+                tipoPlaca: $tipoPlaca,
+                placa: $placa,
+                doc: $documento
             );
             $this->commitBitacora();
 
             return [
                 'reversion' => [
-                    'doc' => $doc,
+                    'doc' => $documento,
                     'cod' => '000',
                     'mensaje' => trim($respuesta),
                 ],
@@ -211,8 +250,9 @@ class ReversionIndividualService
                 totalPago: $total,
                 estatus: 'ERROR',
                 codRespuesta: '999',
-                tipoPlaca: '',
-                placa: ''
+                tipoPlaca: $tipoPlaca,
+                placa: $placa,
+                doc: $documento
             );
             $this->commitBitacora();
 

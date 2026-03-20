@@ -51,15 +51,14 @@ class IndividualController extends AbstractController
     {
         $data = json_decode($request->getContent(), true) ?? [];
 
-        // Obtención de datos desde el body
-        $remisiones = is_array($data['remisiones'] ?? null) ? $data['remisiones'] : [];
         $documento  = (string)($data['documento'] ?? '');
         $usuario    = (string)($data['usuario'] ?? '');
         $pass       = (string)($data['pass'] ?? '');
+        $message     = (string)($data['message'] ?? '');
         $ip         = (string)($request->getClientIp() ?? '');
 
         // Llamar al servicio de reversión
-        $result = $service->execute($remisiones, $documento, $usuario, $pass, $ip);
+        $result = $service->execute($documento, $usuario, $pass, $message, $ip);
 
         // Enviar el resultado, dependiendo de si hubo error o no
         return new JsonResponse($result, isset($result['error']) ? 400 : 200);

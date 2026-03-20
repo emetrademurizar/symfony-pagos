@@ -183,4 +183,51 @@ class Bitacora
 
         return ((int)($row['TOTAL'] ?? 0)) > 0;
     }
+
+    public function obtenerPagoPorDocumento(string $documento): array|false
+    {
+        $oci = $this->conn->getNativeConnection();
+
+        $sql = <<<'SQL'
+            SELECT
+                NO_REFERENCIA,
+                NO_AUTORIZA,
+                FECHA
+            FROM HISTORIAL_BANCOS
+            WHERE DOC = :documento
+            AND TIPO_OPERACION IN ('2', '5')
+            AND (ESTATUS = 'EXITOSO' OR CODIGO_RESPUESTA = '000')
+            ORDER BY FECHA DESC
+        SQL;
+
+        $stm = oci_parse($oci, $sql);
+
+        if ($stm === false) {
+            $e = oci_error($oci);
+            throw new \RuntimeException($e['message'] ?? 'ERROR AL PREPARAR CONSULTA DE BITACORA');
+        }
+
+        oci_bind_by_name($stm, ':documento', $documento);
+
+        $ok = oci_execute($stm, OCI_NO_AUTO_COMMIT);
+
+        if ($ok === false) {
+            $e = oci_error($stm) ?: oci_error($oci);
+            oci_free_statement($stm);
+            throw new \RuntimeException($e['message'] ?? 'ERROR AL CONSULTAR BITACORA');
+        }
+
+        $row = oci_fetch_assoc($stm);
+        oci_free_statement($stm);
+
+        if (!$row) {
+            return false;
+        }
+
+        return [
+            'no_referencia' => (string)($row['NO_REFERENCIA'] ?? ''),
+            'no_autorizacion' => (string)($row['NO_AUTORIZA'] ?? ''),
+            'fecha' => $row['FECHA'] ?? null,
+        ];
+    }
 }
