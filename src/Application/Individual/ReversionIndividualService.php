@@ -9,7 +9,7 @@ use App\Utils\Bitacora;
 class ReversionIndividualService
 {
     private const TIPO_OPERACION_BITACORA = '3';
-    private const TIPO_OPERACION_PAQUETE  = 'N';
+    private const TIPO_OPERACION_PAQUETE  = 'W';
 
     public function __construct(
         private readonly Connection $conn,

@@ -8,7 +8,7 @@ use Doctrine\DBAL\Connection;
 
 class TotalPagoService
 {
-    private const TIPO_OPERA = 'N';
+    private const TIPO_OPERA = 'W';
     private const TIPO_OPERACION_BITACORA = '5';
 
     public function __construct(
@@ -416,10 +416,10 @@ class TotalPagoService
                 oci_bind_by_name($stmtPago, ':p_remis', $remision);
                 oci_bind_by_name($stmtPago, ':p_monto', $monto);
                 oci_bind_by_name($stmtPago, ':p_tipo_opera', $tipoOpera);
-                oci_bind_by_name($stmtPago, ':p_numero_recibo', $numeroRecibo, 4000);
-                oci_bind_by_name($stmtPago, ':p_documento_pagado', $documentoSalida, 4000);
+                oci_bind_by_name($stmtPago, ':p_numero_recibo', $numeroRecibo);
+                oci_bind_by_name($stmtPago, ':p_documento_pagado', $documentoSalida, 6000, SQLT_CHR);
                 oci_bind_by_name($stmtPago, ':p_usuario_graba', $usuarioGraba);
-                oci_bind_by_name($stmtPago, ':nombre', $nombre, 4000);
+                oci_bind_by_name($stmtPago, ':nombre', $nombre);
 
                 $okPago = oci_execute($stmtPago, OCI_NO_AUTO_COMMIT);
 
@@ -457,6 +457,8 @@ class TotalPagoService
                 }
 
                 oci_free_statement($stmtPago);
+
+                $documentoSalida = trim($documentoSalida);
 
                 $documentoSalida = trim($documentoSalida);
                 $ultimoDocumento = $documentoSalida;

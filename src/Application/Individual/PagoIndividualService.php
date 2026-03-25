@@ -5,16 +5,18 @@ namespace App\Application\Individual;
 use App\Utils\Bitacora;
 use App\Utils\Validator;
 use Doctrine\DBAL\Connection;
+use Psr\Log\LoggerInterface;
 
 class PagoIndividualService
 {
-    private const TIPO_OPERA = 'N';
+    private const TIPO_OPERA = 'W';
     private const TIPO_OPERACION_BITACORA = '2';
 
     public function __construct(
         private readonly Connection $conn,
         private readonly Validator $validator,
         private readonly Bitacora $bitacora,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -44,7 +46,7 @@ class PagoIndividualService
             ];
         }
 
-        $caja = $userData['CAJA'] ?? '';
+        $caja = $userData['caja'] ?? '';
 
         if (count($remisiones) === 0) {
             return [
@@ -85,7 +87,7 @@ class PagoIndividualService
                         :nombre
                     );
                 END;
-            SQL;
+            SQL;            
 
             foreach ($remisiones as $index => $r) {
                 $serie = strtoupper(trim((string)($r['serie'] ?? '')));
@@ -276,13 +278,32 @@ class PagoIndividualService
                 oci_bind_by_name($stmtPago, ':p_remis', $remision);
                 oci_bind_by_name($stmtPago, ':p_monto', $monto);
                 oci_bind_by_name($stmtPago, ':p_tipo_opera', $tipoOpera);
-                oci_bind_by_name($stmtPago, ':p_numero_recibo', $numeroRecibo, 4000);
-                oci_bind_by_name($stmtPago, ':p_documento_pagado', $documentoSalida, 4000);
+                oci_bind_by_name($stmtPago, ':p_numero_recibo', $numeroRecibo);
+                oci_bind_by_name($stmtPago, ':p_documento_pagado', $documentoSalida, 6000, SQLT_CHR);
                 oci_bind_by_name($stmtPago, ':p_usuario_graba', $usuarioGraba);
-                oci_bind_by_name($stmtPago, ':nombre', $nombre, 4000);
+                oci_bind_by_name($stmtPago, ':nombre', $nombre);
 
+                $this->logger->info('Ejecutando sp_aplicar_pago', [
+                    'sql' => $sqlPago,
+                    'params' => [
+                        'p_serie' => $serie,
+                        'p_remis' => $remision,
+                        'p_monto' => $monto,
+                        'p_tipo_opera' => $tipoOpera,
+                        'p_numero_recibo' => $numeroRecibo,
+                        'p_usuario_graba' => $usuarioGraba,
+                        'p_nombre_pago' => $nombre,
+                    ],
+                ]);
+                
                 $okPago = oci_execute($stmtPago, OCI_NO_AUTO_COMMIT);
 
+                $this->logger->info('Respuesta sp_aplicar_pago', [
+                    'okPago' => $okPago,
+                    'salida' => [
+                        'p_documento_pagado' => $documentoSalida,
+                    ],
+                ]);
                 if ($okPago === false) {
                     $e = oci_error($stmtPago) ?: oci_error($oci);
                     oci_free_statement($stmtPago);
@@ -318,7 +339,6 @@ class PagoIndividualService
 
                 oci_free_statement($stmtPago);
 
-                $documentoSalida = trim($documentoSalida);
                 $ultimoDocumento = $documentoSalida;
 
                 $esNumeroDocumento = ctype_digit($documentoSalida);
@@ -438,7 +458,7 @@ class PagoIndividualService
                     'mensaje' => 'REMISION PAGADA',
                 ],
             ];
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
             if ($oci) {
                 @oci_rollback($oci);
             }
