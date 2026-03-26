@@ -5,6 +5,7 @@ namespace App\Application\Individual;
 use Doctrine\DBAL\Connection;
 use App\Utils\Validator;
 use App\Utils\Bitacora;
+use Psr\Log\LoggerInterface;
 
 class ReversionIndividualService
 {
@@ -14,7 +15,8 @@ class ReversionIndividualService
     public function __construct(
         private readonly Connection $conn,
         private readonly Validator $validator,
-        private readonly Bitacora $bitacora
+        private readonly Bitacora $bitacora,
+        private readonly LoggerInterface $logger,
     ) {}
 
     private function commitBitacora(): void
@@ -47,12 +49,12 @@ class ReversionIndividualService
             ];
         }
 
-        $nombreUsuario = $userData['nombre_banco'] ?? '';
+        $usuario_graba = $userData['caja'] ?? '';
 
         if ($documento === '' || !ctype_digit($documento)) {
             $this->bitacora->bitacora(
                 ip: $ip,
-                usuario: $nombreUsuario,
+                usuario: $usuario,
                 serie: '',
                 remision: '',
                 referencia: '',
@@ -64,6 +66,7 @@ class ReversionIndividualService
                 codRespuesta: '004',
                 tipoPlaca: '',
                 placa: '',
+                comentarios: 'DOCUMENTO NO VALIDO',
                 doc: $documento
             );
             $this->commitBitacora();
@@ -80,18 +83,20 @@ class ReversionIndividualService
         try {
             $pago = $this->bitacora->obtenerPagoPorDocumento($documento);
         } catch (\Throwable $e) {
+            $this->logger->info('Error en busqueda de pago para reversa', $pago);
             return [
                 'error' => [
                     'cod' => '999',
-                    'mensaje' => 'ERROR CONEXION BD: ' . $e->getMessage(),
+                    'mensaje' => 'ERROR CONEXION BD:' . $e->getMessage(),
                 ],
             ];
         }
+        $this->logger->info('Resultado de busqueda de pago', $pago);
 
         if ($pago === false) {
             $this->bitacora->bitacora(
                 ip: $ip,
-                usuario: $nombreUsuario,
+                usuario: $usuario,
                 serie: '',
                 remision: '',
                 referencia: '',
@@ -116,8 +121,6 @@ class ReversionIndividualService
             ];
         }
 
-        $serie          = strtoupper(trim((string)($pago['serie'] ?? '')));
-        $remision       = trim((string)($pago['remision'] ?? ''));
         $total          = (float)($pago['total'] ?? 0);
         $noReferencia   = trim((string)($pago['no_referencia'] ?? ''));
         $noAutorizacion = trim((string)($pago['no_autorizacion'] ?? ''));
@@ -137,18 +140,19 @@ class ReversionIndividualService
         if ($fechaPago === '' || $fechaPago !== $hoy) {
             $this->bitacora->bitacora(
                 ip: $ip,
-                usuario: $nombreUsuario,
-                serie: $serie,
-                remision: $remision,
+                usuario: $usuario,
+                serie: '',
+                remision: '',
                 referencia: $noReferencia,
                 autorizacion: $noAutorizacion,
                 operacion: self::TIPO_OPERACION_BITACORA,
                 totalOperacion: $total,
                 totalPago: $total,
                 estatus: 'ERROR',
-                codRespuesta: '004',
+                codRespuesta: '002',
                 tipoPlaca: $tipoPlaca,
                 placa: $placa,
+                comentarios: 'SE HA EXCEDIDO LA FECHA',
                 doc: $documento
             );
             $this->commitBitacora();
@@ -156,8 +160,8 @@ class ReversionIndividualService
             return [
                 'reversion' => [
                     'doc' => $documento,
-                    'cod' => '004',
-                    'mensaje' => 'TRANSACCION NO PROCESADA',
+                    'cod' => '002',
+                    'mensaje' => 'SE HA EXCEDIDO LA FECHA',
                 ],
             ];
         }
@@ -190,7 +194,7 @@ class ReversionIndividualService
             oci_bind_by_name($stmt, ':p_numero_recibo', $numeroRecibo);
             oci_bind_by_name($stmt, ':p_respuesta', $respuesta, 4000);
             oci_bind_by_name($stmt, ':p_tipo_opera', $tipoOperacion);
-            oci_bind_by_name($stmt, ':p_usuario_graba', $nombreUsuario);
+            oci_bind_by_name($stmt, ':p_usuario_graba', $usuario_graba);
 
             $ok = oci_execute($stmt, OCI_NO_AUTO_COMMIT);
 
@@ -208,9 +212,9 @@ class ReversionIndividualService
 
             $this->bitacora->bitacora(
                 ip: $ip,
-                usuario: $nombreUsuario,
-                serie: $serie,
-                remision: $remision,
+                usuario: $usuario,
+                serie: '',
+                remision: '',
                 referencia: $noReferencia,
                 autorizacion: $noAutorizacion,
                 operacion: self::TIPO_OPERACION_BITACORA,
@@ -241,7 +245,7 @@ class ReversionIndividualService
 
             $this->bitacora->bitacora(
                 ip: $ip,
-                usuario: $nombreUsuario,
+                usuario: $usuario,
                 serie: $serie,
                 remision: $remision,
                 referencia: $noReferencia,
@@ -260,7 +264,7 @@ class ReversionIndividualService
             return [
                 'error' => [
                     'cod' => '999',
-                    'mensaje' => 'ERROR CONEXION BD: ' . $e->getMessage(),
+                    'mensaje' => 'ERROR CONEXION BD: 1' . $e->getMessage(),
                 ],
             ];
         }

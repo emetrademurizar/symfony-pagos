@@ -53,10 +53,16 @@ class PagoIndividualService
                 'remision' => [
                     'doc' => '',
                     'cod' => '004',
-                    'mensaje' => 'TRANSACCION NO PROCESADA',
+                    'mensaje' => 'TRANSACCION NO PROCESADA malas remisiones',
                 ],
             ];
         }
+
+        $this->logger->info('Iniciando proceso de pago individual', [
+            'usuario' => $usuario,
+            'ip' => $ip,
+            'remisiones' => $remisiones,
+        ]);
 
         $totalOperacion = 0.0;
         foreach ($remisiones as $r) {
@@ -87,17 +93,65 @@ class PagoIndividualService
                         :nombre
                     );
                 END;
-            SQL;            
+            SQL;       
+            
+            $primeraRemision = $remisiones[0] ?? [];
+            $seriePrimera = strtoupper(trim((string)($primeraRemision['serie'] ?? '')));
+            $remisionPrimera = trim((string)($primeraRemision['remision'] ?? $primeraRemision['numero'] ?? ''));
+
+            if ($seriePrimera === '' || $remisionPrimera === '') {
+                return [
+                    'remision' => [
+                        'doc' => '',
+                        'cod' => '004',
+                        'mensaje' => 'TRANSACCION NO PROCESADA: PRIMERA REMISION INVALIDA',
+                    ],
+                ];
+            }
+
+            $infoPlaca = $this->bitacora->obtenerPlacaPorRemision($seriePrimera, $remisionPrimera);
+
+            if (
+                !$infoPlaca ||
+                empty($infoPlaca['tipo_placa']) ||
+                empty($infoPlaca['placa'])
+            ) {
+                return [
+                    'remision' => [
+                        'doc' => '',
+                        'cod' => '004',
+                        'mensaje' => 'TRANSACCION NO PROCESADA: NO SE ENCONTRO PLACA PARA LA REMISION',
+                    ],
+                ];
+            }
+
+            $tipoPlaca = $infoPlaca['tipo_placa'];
+            $placa = $infoPlaca['placa'];
+
+            $this->logger->info('Placa obtenida para pago individual', [
+                'serie' => $seriePrimera,
+                'remision' => $remisionPrimera,
+                'tipo_placa' => $tipoPlaca,
+                'placa' => $placa,
+            ]);
 
             foreach ($remisiones as $index => $r) {
                 $serie = strtoupper(trim((string)($r['serie'] ?? '')));
                 $remision = trim((string)($r['remision'] ?? $r['numero'] ?? ''));
                 $monto = (float)($r['total'] ?? $r['valor'] ?? 0);
-                $tipoPlaca = strtoupper(trim((string)($r['tipo_placa'] ?? '')));
-                $placa = strtoupper(trim((string)($r['placa'] ?? '')));
                 $referencia = trim((string)($r['no_referencia'] ?? ''));
                 $autorizacion = trim((string)($r['no_autorizacion'] ?? ''));
                 $nombre = '';
+
+                $this->logger->info('Procesando remisión', [
+                    'serie' => $serie,
+                    'remision' => $remision,
+                    'monto' => $monto,
+                    'referencia' => $referencia,
+                    'autorizacion' => $autorizacion,
+                    'tipo_placa' => $tipoPlaca,
+                    'placa' => $placa,
+                ]);
 
                 // Si ya hubo un error antes, esta remisión ya no se intenta pagar.
                 if ($detener) {
@@ -232,7 +286,7 @@ class PagoIndividualService
                         'serie' => $serie,
                         'remision' => $remision,
                         'codigo' => '004',
-                        'mensaje' => 'TRANSACCION NO PROCESADA',
+                        'mensaje' => 'TRANSACCION NO PROCESADA 2',
                     ];
 
                     $detener = true;
@@ -308,7 +362,7 @@ class PagoIndividualService
                     $e = oci_error($stmtPago) ?: oci_error($oci);
                     oci_free_statement($stmtPago);
 
-                    $mensaje = $e['message'] ?? 'TRANSACCION NO PROCESADA';
+                    $mensaje = $e['message'] ?? 'TRANSACCION NO PROCESADA 3';
 
                     $this->bitacora->bitacora(
                         ip: $ip,
@@ -391,7 +445,7 @@ class PagoIndividualService
                 } else {
                     $codigoRespuesta = '004';
                     $estatus = 'ERROR';
-                    $mensajeRespuesta = 'TRANSACCION NO PROCESADA';
+                    $mensajeRespuesta = 'TRANSACCION NO PROCESADA 5';
 
                     $noProcesadas[] = [
                         'serie' => $serie,
@@ -432,7 +486,7 @@ class PagoIndividualService
                     'remision' => [
                         'doc' => '',
                         'cod' => '004',
-                        'mensaje' => 'TRANSACCION NO PROCESADA',
+                        'mensaje' => 'TRANSACCION NO PROCESADA 6',
                     ],
                     'procesadas' => $procesadas,
                     'no_procesadas' => $noProcesadas,
@@ -467,7 +521,7 @@ class PagoIndividualService
                 'remision' => [
                     'doc' => '',
                     'cod' => '004',
-                    'mensaje' => 'TRANSACCION NO PROCESADA',
+                    'mensaje' => 'TRANSACCION NO PROCESADA 7: ' . ($e->getMessage() ?? ''),
                 ],
             ];
         }

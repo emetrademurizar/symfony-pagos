@@ -192,9 +192,12 @@ class Bitacora
             SELECT
                 NO_REFERENCIA,
                 NO_AUTORIZA,
-                FECHA
+                FECHA,
+                tipo_placa,
+                placa,
+                total_operacion
             FROM HISTORIAL_BANCOS
-            WHERE DOC = :documento
+            WHERE DOCUMENTO = :documento
             AND TIPO_OPERACION IN ('2', '5')
             AND (ESTATUS = 'EXITOSO' OR CODIGO_RESPUESTA = '000')
             ORDER BY FECHA DESC
@@ -228,6 +231,53 @@ class Bitacora
             'no_referencia' => (string)($row['NO_REFERENCIA'] ?? ''),
             'no_autorizacion' => (string)($row['NO_AUTORIZA'] ?? ''),
             'fecha' => $row['FECHA'] ?? null,
+            'tipo_placa' => $row['TIPO_PLACA'] ?? null,
+            'placa' => $row['PLACA'] ?? null,
+            'total' => $row['TOTAL_OPERACION'] ?? null
+        ];
+    }
+
+    public function obtenerPlacaPorRemision(string $serie, string $remision): array|false
+    {
+        $oci = $this->conn->getNativeConnection();
+
+        $sql = <<<'SQL'
+            SELECT
+                tipo_placa,
+                placa
+            FROM HISTORIAL_BANCOS
+            WHERE SERIE = :serie AND
+                REMISION = :remision
+        SQL;
+
+        $stm = oci_parse($oci, $sql);
+
+        if ($stm === false) {
+            $e = oci_error($oci);
+            throw new \RuntimeException($e['message'] ?? 'ERROR AL PREPARAR CONSULTA DE BITACORA');
+        }
+
+        oci_bind_by_name($stm, ':serie', $serie);
+        oci_bind_by_name($stm, ':remision', $remision);
+
+        $ok = oci_execute($stm, OCI_NO_AUTO_COMMIT);
+
+        if ($ok === false) {
+            $e = oci_error($stm) ?: oci_error($oci);
+            oci_free_statement($stm);
+            throw new \RuntimeException($e['message'] ?? 'ERROR AL CONSULTAR PLACA');
+        }
+
+        $row = oci_fetch_assoc($stm);
+        oci_free_statement($stm);
+
+        if (!$row) {
+            return false;
+        }
+
+        return [
+            'tipo_placa' => $row['TIPO_PLACA'] ?? null,
+            'placa' => $row['PLACA'] ?? null
         ];
     }
 }
