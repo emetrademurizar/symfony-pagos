@@ -206,7 +206,7 @@ class ConsultaIndividualService
             $numero = $r['REMISION'] ?? $r['remision'] ?? null;
             $nombre = $r['NOMBRE'] ?? $r['nombre'] ?? null;
             $fecha  = $r['FECHA'] ?? $r['fecha'] ?? null;
-            $total  = $r['TOTAL'] ?? $r['total'] ?? null;
+            $total  = $r['SALDO'] ?? $r['saldo'] ?? null;
 
             return [
                 'serie'  => (string)($serie ?? ''),

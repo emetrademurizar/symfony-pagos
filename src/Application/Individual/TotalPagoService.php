@@ -5,6 +5,7 @@ namespace App\Application\Individual;
 use App\Utils\Bitacora;
 use App\Utils\Validator;
 use Doctrine\DBAL\Connection;
+use Psr\Log\LoggerInterface;
 
 class TotalPagoService
 {
@@ -15,6 +16,7 @@ class TotalPagoService
         private readonly Connection $conn,
         private readonly Validator $validator,
         private readonly Bitacora $bitacora,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -68,7 +70,7 @@ class TotalPagoService
                 'total_pago' => [
                     'doc' => '',
                     'cod' => '007',
-                    'mensaje' => 'TRANSACCION NO PROCESADA',
+                    'mensaje' => 'TRANSACCION NO PROCESADA: FALTA NUMERO DE REFERENCIA Y/O AUTORIZACION',
                 ],
             ];
         }
@@ -154,7 +156,7 @@ class TotalPagoService
                 'total_pago' => [
                     'doc' => '',
                     'cod' => '007',
-                    'mensaje' => 'TRANSACCION NO PROCESADA',
+                    'mensaje' => 'TRANSACCION NO PROCESADA: ERROR CONSULTA DE REMISIONES',
                 ],
             ];
         }
@@ -187,7 +189,12 @@ class TotalPagoService
             $totalPendiente += $montoRemision;
         }
 
-        if (round($totalPendiente, 2) !== round($totalCobrado, 2)) {
+        $this->logger->info('Comparación de pago', [
+            'total_pendiente' => $totalPendiente,
+            'total_cobrado' => $totalCobrado,
+        ]);
+
+        if (round($totalCobrado, 2) < round($totalPendiente, 2)) {
             return [
                 'error' => [
                     'cod' => '003',
@@ -427,7 +434,7 @@ class TotalPagoService
                     $e = oci_error($stmtPago) ?: oci_error($oci);
                     oci_free_statement($stmtPago);
 
-                    $mensaje = $e['message'] ?? 'TRANSACCION NO PROCESADA';
+                    $mensaje = $e['message'] ?? 'TRANSACCION NO PROCESADA 2';
 
                     $this->bitacora->bitacora(
                         ip: $ip,
@@ -513,7 +520,7 @@ class TotalPagoService
                 } else {
                     $codigoRespuesta = '007';
                     $estatus = 'ERROR';
-                    $mensajeRespuesta = 'TRANSACCION NO PROCESADA';
+                    $mensajeRespuesta = 'TRANSACCION NO PROCESADA 3';
 
                     $noProcesadas[] = [
                         'serie' => $serie,
@@ -553,7 +560,7 @@ class TotalPagoService
                     'total_pago' => [
                         'doc' => '',
                         'cod' => '007',
-                        'mensaje' => 'TRANSACCION NO PROCESADA',
+                        'mensaje' => 'TRANSACCION NO PROCESADA: ALGUNAS REMISIONES NO FUERON PROCESADAS CORRECTAMENTE',
                     ],
                     'procesadas' => $procesadas,
                     'no_procesadas' => $noProcesadas,
@@ -588,7 +595,7 @@ class TotalPagoService
                 'total_pago' => [
                     'doc' => '',
                     'cod' => '007',
-                    'mensaje' => 'TRANSACCION NO PROCESADA',
+                    'mensaje' => 'TRANSACCION NO PROCESADA 7: ' . ($e->getMessage() ?? ''),
                 ],
             ];
         }
