@@ -363,4 +363,18 @@ class SoapController extends AbstractController
         ]);
     }
 
+    #[Route('/api/soap/wsdl', methods: ['GET'])]
+    public function wsdl(): Response
+    {
+        $wsdlPath = $this->getParameter('kernel.project_dir') . '/public/wsdl/servicio_bancos.wsdl';
+
+        if (!file_exists($wsdlPath)) {
+            return new Response('WSDL no encontrado', 404);
+        }
+
+        return new Response(file_get_contents($wsdlPath), 200, [
+            'Content-Type' => 'text/xml; charset=UTF-8',
+        ]);
+    }
+
 }

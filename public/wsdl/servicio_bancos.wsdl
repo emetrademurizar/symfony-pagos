@@ -1,0 +1,418 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions
+    xmlns="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:tns="http://emetra.gt/soap"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    targetNamespace="http://emetra.gt/soap"
+    name="ServicioBancos">
+
+    <types>
+        <xsd:schema targetNamespace="http://emetra.gt/soap" elementFormDefault="qualified">
+
+            <!-- ========================= -->
+            <!-- Tipos comunes -->
+            <!-- ========================= -->
+
+            <xsd:complexType name="ErrorType">
+                <xsd:sequence>
+                    <xsd:element name="COD" type="xsd:string"/>
+                    <xsd:element name="MENSAJE" type="xsd:string"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="RemisionConsultaType">
+                <xsd:sequence>
+                    <xsd:element name="SERIE" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="NUMERO" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="NOMBRE" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="FECHA" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="TOTAL" type="xsd:string" minOccurs="0"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="RemisionConsultaListType">
+                <xsd:sequence>
+                    <xsd:element name="REMISION" type="tns:RemisionConsultaType" minOccurs="0" maxOccurs="unbounded"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="RemisionPagoInputType">
+                <xsd:sequence>
+                    <xsd:element name="serie" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="remision" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="total" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="no_referencia" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="no_autorizacion" type="xsd:string" minOccurs="0"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="RemisionPagoInputListType">
+                <xsd:sequence>
+                    <xsd:element name="Remision" type="tns:RemisionPagoInputType" minOccurs="0" maxOccurs="unbounded"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="PagoDetalleItemType">
+                <xsd:sequence>
+                    <xsd:element name="SERIE" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="REMISION" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="CODIGO" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="MENSAJE" type="xsd:string" minOccurs="0"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="PagoDetalleListType">
+                <xsd:sequence>
+                    <xsd:element name="ITEM" type="tns:PagoDetalleItemType" minOccurs="0" maxOccurs="unbounded"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="TotalPagoProcesadaItemType">
+                <xsd:sequence>
+                    <xsd:element name="SERIE" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="REMISION" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="DOCUMENTO" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="COD" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="MENSAJE" type="xsd:string" minOccurs="0"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="TotalPagoProcesadaListType">
+                <xsd:sequence>
+                    <xsd:element name="ITEM" type="tns:TotalPagoProcesadaItemType" minOccurs="0" maxOccurs="unbounded"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="TotalPagoNoProcesadaItemType">
+                <xsd:sequence>
+                    <xsd:element name="SERIE" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="REMISION" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="COD" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="MENSAJE" type="xsd:string" minOccurs="0"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="TotalPagoNoProcesadaListType">
+                <xsd:sequence>
+                    <xsd:element name="ITEM" type="tns:TotalPagoNoProcesadaItemType" minOccurs="0" maxOccurs="unbounded"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="PagoResponseType">
+                <xsd:sequence>
+                    <xsd:element name="DOC" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="COD" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="MENSAJE" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="DETALLE" minOccurs="0">
+                        <xsd:complexType>
+                            <xsd:sequence>
+                                <xsd:element name="PROCESADAS" type="tns:PagoDetalleListType" minOccurs="0"/>
+                                <xsd:element name="NO_PROCESADAS" type="tns:PagoDetalleListType" minOccurs="0"/>
+                            </xsd:sequence>
+                        </xsd:complexType>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="ReversionResponseType">
+                <xsd:sequence>
+                    <xsd:element name="DOC" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="COD" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="MENSAJE" type="xsd:string" minOccurs="0"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="TotalResponseType">
+                <xsd:sequence>
+                    <xsd:element name="FECHA" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="TOTAL" type="xsd:string" minOccurs="0"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="TotalPagoResponseType">
+                <xsd:sequence>
+                    <xsd:element name="DOC" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="COD" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="MENSAJE" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="DETALLE" minOccurs="0">
+                        <xsd:complexType>
+                            <xsd:sequence>
+                                <xsd:element name="PROCESADAS" type="tns:TotalPagoProcesadaListType" minOccurs="0"/>
+                                <xsd:element name="NO_PROCESADAS" type="tns:TotalPagoNoProcesadaListType" minOccurs="0"/>
+                            </xsd:sequence>
+                        </xsd:complexType>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <!-- ========================= -->
+            <!-- consulta -->
+            <!-- ========================= -->
+
+            <xsd:element name="consulta">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="Tipo_Placa" type="xsd:string"/>
+                        <xsd:element name="Placa" type="xsd:string"/>
+                        <xsd:element name="Usuario" type="xsd:string"/>
+                        <xsd:element name="Pass" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="consultaResponse">
+                <xsd:complexType>
+                    <xsd:choice>
+                        <xsd:element name="REMISIONES" type="tns:RemisionConsultaListType"/>
+                        <xsd:element name="ERROR" type="tns:ErrorType"/>
+                    </xsd:choice>
+                </xsd:complexType>
+            </xsd:element>
+
+            <!-- ========================= -->
+            <!-- pago -->
+            <!-- ========================= -->
+
+            <xsd:element name="pago">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="Usuario" type="xsd:string"/>
+                        <xsd:element name="Pass" type="xsd:string"/>
+                        <xsd:element name="Remisiones" type="tns:RemisionPagoInputListType" minOccurs="0"/>
+                        <xsd:element name="Remision" type="tns:RemisionPagoInputType" minOccurs="0" maxOccurs="unbounded"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="pagoResponse">
+                <xsd:complexType>
+                    <xsd:choice>
+                        <xsd:element name="REMISION" type="tns:PagoResponseType"/>
+                        <xsd:element name="ERROR" type="tns:ErrorType"/>
+                    </xsd:choice>
+                </xsd:complexType>
+            </xsd:element>
+
+            <!-- ========================= -->
+            <!-- reversion -->
+            <!-- ========================= -->
+
+            <xsd:element name="reversion">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="Documento" type="xsd:string"/>
+                        <xsd:element name="Usuario" type="xsd:string"/>
+                        <xsd:element name="Pass" type="xsd:string"/>
+                        <xsd:element name="Message" type="xsd:string" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="reversionResponse">
+                <xsd:complexType>
+                    <xsd:choice>
+                        <xsd:element name="REMISION" type="tns:ReversionResponseType"/>
+                        <xsd:element name="ERROR" type="tns:ErrorType"/>
+                    </xsd:choice>
+                </xsd:complexType>
+            </xsd:element>
+
+            <!-- ========================= -->
+            <!-- total -->
+            <!-- ========================= -->
+
+            <xsd:element name="total">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="Tipo_Placa" type="xsd:string"/>
+                        <xsd:element name="Placa" type="xsd:string"/>
+                        <xsd:element name="Usuario" type="xsd:string"/>
+                        <xsd:element name="Pass" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="totalResponse">
+                <xsd:complexType>
+                    <xsd:choice>
+                        <xsd:element name="RESULTADO" type="tns:TotalResponseType"/>
+                        <xsd:element name="ERROR" type="tns:ErrorType"/>
+                    </xsd:choice>
+                </xsd:complexType>
+            </xsd:element>
+
+            <!-- ========================= -->
+            <!-- totalpago -->
+            <!-- ========================= -->
+
+            <xsd:element name="totalpago">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="Tipo_Placa" type="xsd:string"/>
+                        <xsd:element name="Placa" type="xsd:string"/>
+                        <xsd:element name="Total" type="xsd:string"/>
+                        <xsd:element name="No_Referencia" type="xsd:string"/>
+                        <xsd:element name="No_Autorizacion" type="xsd:string"/>
+                        <xsd:element name="Usuario" type="xsd:string"/>
+                        <xsd:element name="Pass" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="totalpagoResponse">
+                <xsd:complexType>
+                    <xsd:choice>
+                        <xsd:element name="REMISION" type="tns:TotalPagoResponseType"/>
+                        <xsd:element name="ERROR" type="tns:ErrorType"/>
+                    </xsd:choice>
+                </xsd:complexType>
+            </xsd:element>
+
+        </xsd:schema>
+    </types>
+
+    <!-- ========================= -->
+    <!-- Messages -->
+    <!-- ========================= -->
+
+    <message name="consultaRequest">
+        <part name="parameters" element="tns:consulta"/>
+    </message>
+
+    <message name="consultaResponse">
+        <part name="parameters" element="tns:consultaResponse"/>
+    </message>
+
+    <message name="pagoRequest">
+        <part name="parameters" element="tns:pago"/>
+    </message>
+
+    <message name="pagoResponse">
+        <part name="parameters" element="tns:pagoResponse"/>
+    </message>
+
+    <message name="reversionRequest">
+        <part name="parameters" element="tns:reversion"/>
+    </message>
+
+    <message name="reversionResponse">
+        <part name="parameters" element="tns:reversionResponse"/>
+    </message>
+
+    <message name="totalRequest">
+        <part name="parameters" element="tns:total"/>
+    </message>
+
+    <message name="totalResponse">
+        <part name="parameters" element="tns:totalResponse"/>
+    </message>
+
+    <message name="totalpagoRequest">
+        <part name="parameters" element="tns:totalpago"/>
+    </message>
+
+    <message name="totalpagoResponse">
+        <part name="parameters" element="tns:totalpagoResponse"/>
+    </message>
+
+    <!-- ========================= -->
+    <!-- PortType -->
+    <!-- ========================= -->
+
+    <portType name="ServicioBancosPortType">
+        <operation name="consulta">
+            <input message="tns:consultaRequest"/>
+            <output message="tns:consultaResponse"/>
+        </operation>
+
+        <operation name="pago">
+            <input message="tns:pagoRequest"/>
+            <output message="tns:pagoResponse"/>
+        </operation>
+
+        <operation name="reversion">
+            <input message="tns:reversionRequest"/>
+            <output message="tns:reversionResponse"/>
+        </operation>
+
+        <operation name="total">
+            <input message="tns:totalRequest"/>
+            <output message="tns:totalResponse"/>
+        </operation>
+
+        <operation name="totalpago">
+            <input message="tns:totalpagoRequest"/>
+            <output message="tns:totalpagoResponse"/>
+        </operation>
+    </portType>
+
+    <!-- ========================= -->
+    <!-- Binding -->
+    <!-- ========================= -->
+
+    <binding name="ServicioBancosBinding" type="tns:ServicioBancosPortType">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+
+        <operation name="consulta">
+            <soap:operation soapAction="consulta"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+            <output>
+                <soap:body use="literal"/>
+            </output>
+        </operation>
+
+        <operation name="pago">
+            <soap:operation soapAction="pago"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+            <output>
+                <soap:body use="literal"/>
+            </output>
+        </operation>
+
+        <operation name="reversion">
+            <soap:operation soapAction="reversion"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+            <output>
+                <soap:body use="literal"/>
+            </output>
+        </operation>
+
+        <operation name="total">
+            <soap:operation soapAction="total"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+            <output>
+                <soap:body use="literal"/>
+            </output>
+        </operation>
+
+        <operation name="totalpago">
+            <soap:operation soapAction="totalpago"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+            <output>
+                <soap:body use="literal"/>
+            </output>
+        </operation>
+    </binding>
+
+    <!-- ========================= -->
+    <!-- Service -->
+    <!-- ========================= -->
+
+    <service name="ServicioBancosService">
+        <port name="ServicioBancosPort" binding="tns:ServicioBancosBinding">
+            <soap:address location="http://localhost:8000/api/soap"/>
+        </port>
+    </service>
+
+</definitions>
