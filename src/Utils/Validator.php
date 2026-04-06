@@ -2,11 +2,13 @@
 
 namespace App\Utils;
 use Doctrine\DBAL\Connection;
+use Psr\Log\LoggerInterface;
 
 class Validator
 {
     public function __construct(
-        private readonly Connection $conn
+        private readonly Connection $conn,
+        private readonly LoggerInterface $logger
     ) {}
 
     public function validPlaca(string $placa): bool
@@ -28,11 +30,15 @@ class Validator
     
     public function validUser(string $usuario, string $password): array|false
     {
+        $this->logger->info('Validar usuario');
+        $this->logger->info('Usuario', [$usuario]);
         $usuario = trim($usuario);
+        $this->logger->info('Usuario y password', [$usuario, $password]);
 
-        if ($usuario === '' || !ctype_digit($usuario)) {
+        if ($usuario === '') {
             return false;
         }
+        $this->logger->info('Si pasó');
 
         try {
             $sql = "
@@ -53,7 +59,7 @@ class Validator
 
             $stmt = $this->conn->prepare($sql);
             $result = $stmt->executeQuery([
-                'usuario' => (int)$usuario,
+                'usuario' => $usuario,
             ]);
 
             $row = $result->fetchAssociative();

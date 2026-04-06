@@ -3,16 +3,18 @@
 namespace App\Utils;
 
 use Doctrine\DBAL\Connection;
+use Psr\Log\LoggerInterface;
 
 class Bitacora
 {
     public function __construct(
         private readonly Connection $conn,
+        private readonly LoggerInterface $logger
     ) {}
 
     public function bitacora(
         string $ip,
-        int|string $usuario,
+        string $usuario,
         ?string $serie,
         ?string $remision,
         ?string $referencia,
@@ -35,7 +37,7 @@ class Bitacora
         $placa = !empty($placa) ? $placa : '';
         $comentarios = !empty($comentarios) ? $comentarios : '';
         $doc = !empty($doc) ? $doc : '';
-        $usuario = (int)$usuario;
+        $usuario = $usuario;
 
         $transaccion = $this->nextBitacora();
         $oci = $this->conn->getNativeConnection();
@@ -103,6 +105,10 @@ class Bitacora
         oci_bind_by_name($stm, ':T_PLACA', $tipoPlaca);
         oci_bind_by_name($stm, ':PLACA', $placa);
         oci_bind_by_name($stm, ':COMENTARIOS', $comentarios);
+
+        $this->logger->info('data a guardar en bitacora',[
+            "usuario: "=>$usuario
+        ]);
 
         $ok = oci_execute($stm, OCI_NO_AUTO_COMMIT);
 
