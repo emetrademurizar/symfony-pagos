@@ -44,12 +44,10 @@ class SoapController extends AbstractController
 
         $xpath = new \DOMXPath($dom);
 
-        // SOAP 1.1 estándar:
         $xpath->registerNamespace('soapenv', 'http://schemas.xmlsoap.org/soap/envelope/');
-        // SOAP 1.2 (por si acaso algún cliente manda esto):
+        
         $xpath->registerNamespace('soap12', 'http://www.w3.org/2003/05/soap-envelope');
 
-        // Tomamos el primer hijo dentro del Body (debería ser <consulta>)
         $opNode = $xpath->query('//soapenv:Body/*[1]')->item(0)
             ?? $xpath->query('//soap12:Body/*[1]')->item(0);
 
@@ -66,10 +64,10 @@ class SoapController extends AbstractController
         // (1) Consulta
         // =========================
         if ($opName === 'consulta') {
-            $tipoPlaca = trim($xpath->evaluate('string(./Tipo_Placa)', $opNode));
-            $placa     = trim($xpath->evaluate('string(./Placa)', $opNode));
-            $usuario   = trim($xpath->evaluate('string(./Usuario)', $opNode));
-            $pass      = trim($xpath->evaluate('string(./Pass)', $opNode));
+            $tipoPlaca = $this->x($xpath, $opNode, 'Tipo_Placa');
+            $placa     = $this->x($xpath, $opNode, 'Placa');
+            $usuario   = $this->x($xpath, $opNode, 'Usuario');
+            $pass      = $this->x($xpath, $opNode, 'Pass');
 
             $result = $consultaService->execute($tipoPlaca, $placa, $usuario, $pass, $ip);
 
@@ -99,14 +97,13 @@ class SoapController extends AbstractController
         // (2) PAGO INDIVIDUAL
         // =========================
         if ($opName === 'pago') {
-            // Usuario / Pass al mismo nivel que Remisiones (según lo que definamos)
-            $usuario = trim($xpath->evaluate('string(./Usuario)', $opNode));
-            $pass    = trim($xpath->evaluate('string(./Pass)', $opNode));
+            $usuario = $this->x($xpath, $opNode, 'Usuario');
+            $pass    = $this->x($xpath, $opNode, 'Pass');
 
             $remisiones = [];
 
             // Caso 1: <Remisiones><Remision>...</Remision></Remisiones>
-            $remNodes = $xpath->query('./Remisiones/Remision', $opNode);
+            $remNodes = $this->q($xpath, $opNode, 'Remisiones/Remision');
             if ($remNodes && $remNodes->length > 0) {
                 foreach ($remNodes as $rNode) {
                     if (!$rNode instanceof \DOMElement) {
@@ -114,16 +111,16 @@ class SoapController extends AbstractController
                     }
 
                     $remisiones[] = [
-                        'serie'           => trim($xpath->evaluate('string(./serie)', $rNode)),
-                        'remision'        => trim($xpath->evaluate('string(./remision)', $rNode)),
-                        'total'           => trim($xpath->evaluate('string(./total)', $rNode)),
-                        'no_referencia'   => trim($xpath->evaluate('string(./no_referencia)', $rNode)),
-                        'no_autorizacion' => trim($xpath->evaluate('string(./no_autorizacion)', $rNode)),
+                        'serie'           => $this->x($xpath, $rNode, 'serie'),
+                        'remision'        => $this->x($xpath, $rNode, 'remision'),
+                        'total'           => $this->x($xpath, $rNode, 'total'),
+                        'no_referencia'   => $this->x($xpath, $rNode, 'no_referencia'),
+                        'no_autorizacion' => $this->x($xpath, $rNode, 'no_autorizacion'),
                     ];
                 }
             } else {
                 // Caso 2 fallback: <Remision> directo dentro de <pago>
-                $remNodes2 = $xpath->query('./Remision', $opNode);
+                $remNodes2 = $this->q($xpath, $opNode, 'Remision');
                 if ($remNodes2 && $remNodes2->length > 0) {
                     foreach ($remNodes2 as $rNode) {
                         if (!$rNode instanceof \DOMElement) {
@@ -131,11 +128,11 @@ class SoapController extends AbstractController
                         }
 
                         $remisiones[] = [
-                            'serie'           => trim($xpath->evaluate('string(./serie)', $rNode)),
-                            'remision'        => trim($xpath->evaluate('string(./remision)', $rNode)),
-                            'total'           => trim($xpath->evaluate('string(./total)', $rNode)),
-                            'no_referencia'   => trim($xpath->evaluate('string(./no_referencia)', $rNode)),
-                            'no_autorizacion' => trim($xpath->evaluate('string(./no_autorizacion)', $rNode)),
+                            'serie'           => $this->x($xpath, $rNode, 'serie'),
+                            'remision'        => $this->x($xpath, $rNode, 'remision'),
+                            'total'           => $this->x($xpath, $rNode, 'total'),
+                            'no_referencia'   => $this->x($xpath, $rNode, 'no_referencia'),
+                            'no_autorizacion' => $this->x($xpath, $rNode, 'no_autorizacion'),
                         ];
                     }
                 }
@@ -204,10 +201,10 @@ class SoapController extends AbstractController
         // =========================
 
         if ($opName === 'reversion') {
-            $documento = trim($xpath->evaluate('string(./Documento)', $opNode));
-            $usuario   = trim($xpath->evaluate('string(./Usuario)', $opNode));
-            $pass      = trim($xpath->evaluate('string(./Pass)', $opNode));
-            $message   = trim($xpath->evaluate('string(./Message)', $opNode));
+            $documento = $this->x($xpath, $opNode, 'Documento');
+            $usuario   = $this->x($xpath, $opNode, 'Usuario');
+            $pass      = $this->x($xpath, $opNode, 'Pass');
+            $message   = $this->x($xpath, $opNode, 'Message');
 
             $result = $ReversionService->execute($documento, $usuario, $pass, $message, $ip);
 
@@ -237,10 +234,10 @@ class SoapController extends AbstractController
         // (4) TOTAL consuta
         // =========================
         if ($opName === 'total') {
-            $tipoPlaca = trim($xpath->evaluate('string(./Tipo_Placa)', $opNode));
-            $placa     = trim($xpath->evaluate('string(./Placa)', $opNode));
-            $usuario   = trim($xpath->evaluate('string(./Usuario)', $opNode));
-            $clave     = trim($xpath->evaluate('string(./Pass)', $opNode));
+            $tipoPlaca = $this->x($xpath, $opNode, 'Tipo_Placa');
+            $placa     = $this->x($xpath, $opNode, 'Placa');
+            $usuario   = $this->x($xpath, $opNode, 'Usuario');
+            $clave     = $this->x($xpath, $opNode, 'Pass');
 
             $result = $TotalConsultaService->execute($tipoPlaca, $placa, $usuario, $clave, $ip);
 
@@ -268,13 +265,13 @@ class SoapController extends AbstractController
         // (5) TOTAL PAGO
         // =========================
         if ($opName === 'totalpago') {
-            $tipoPlaca      = trim($xpath->evaluate('string(./Tipo_Placa)', $opNode));
-            $placa          = trim($xpath->evaluate('string(./Placa)', $opNode));
-            $total          = trim($xpath->evaluate('string(./Total)', $opNode));
-            $noReferencia   = trim($xpath->evaluate('string(./No_Referencia)', $opNode));
-            $noAutorizacion = trim($xpath->evaluate('string(./No_Autorizacion)', $opNode));
-            $usuario        = trim($xpath->evaluate('string(./Usuario)', $opNode));
-            $pass           = trim($xpath->evaluate('string(./Pass)', $opNode));
+            $tipoPlaca      = $this->x($xpath, $opNode, 'Tipo_Placa');
+            $placa          = $this->x($xpath, $opNode, 'Placa');
+            $total          = $this->x($xpath, $opNode, 'Total');
+            $noReferencia   = $this->x($xpath, $opNode, 'No_Referencia');
+            $noAutorizacion = $this->x($xpath, $opNode, 'No_Autorizacion');
+            $usuario        = $this->x($xpath, $opNode, 'Usuario');
+            $pass           = $this->x($xpath, $opNode, 'Pass');
 
             $result = $TotalPagoService->execute(
                 $tipoPlaca,
@@ -348,6 +345,23 @@ class SoapController extends AbstractController
             '<ERROR><COD>999</COD><MENSAJE>OPERACION NO SOPORTADA</MENSAJE></ERROR>',
             400
         );
+    }
+
+    private function x(\DOMXPath $xpath, \DOMNode $context, string $name): string
+    {
+        return trim($xpath->evaluate('string(./*[local-name()="' . $name . '"])', $context));
+    }
+
+    private function q(\DOMXPath $xpath, \DOMNode $context, string $path): \DOMNodeList|false
+    {
+        $parts = array_filter(explode('/', $path));
+        $expr = '.';
+
+        foreach ($parts as $part) {
+            $expr .= '/*[local-name()="' . $part . '"]';
+        }
+
+        return $xpath->query($expr, $context);
     }
 
     private function soapWrap(string $innerXml, int $status): Response
