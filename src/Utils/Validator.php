@@ -30,15 +30,11 @@ class Validator
     
     public function validUser(string $usuario, string $password): array|false
     {
-        $this->logger->info('Validar usuario');
-        $this->logger->info('Usuario', [$usuario]);
         $usuario = trim($usuario);
-        $this->logger->info('Usuario y password', [$usuario, $password]);
 
         if ($usuario === '') {
             return false;
         }
-        $this->logger->info('Si pasó');
 
         try {
             $sql = "
@@ -93,4 +89,10 @@ class Validator
             return false;
         }
     }
+
+    public function getInfoUser(string $usuario): array|false
+    {
+        return false;
+    }
+
 }
