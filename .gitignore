@@ -18,3 +18,6 @@
 /public/assets/
 /assets/vendor/
 ###< symfony/asset-mapper ###
+
+docker/nginx/certs/*
+!docker/nginx/certs/.gitkeep

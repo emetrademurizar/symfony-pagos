@@ -7,7 +7,6 @@ use App\Application\Individual\PagoIndividualService;
 use App\Application\Individual\ReversionIndividualService;
 use App\Application\Individual\TotalConsultaService;
 use App\Application\Individual\TotalPagoService;
-use App\Application\Individual\TotalReversionService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -25,7 +24,7 @@ class SoapController extends AbstractController
         TotalPagoService $TotalPagoService,
     ): Response{
         $raw = $request->getContent() ?? '';
-        $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw); // quitar BOM si existe
+        $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw); 
         $raw = trim($raw);
 
         libxml_use_internal_errors(true);
