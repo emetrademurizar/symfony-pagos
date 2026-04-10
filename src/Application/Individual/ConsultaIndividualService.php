@@ -30,13 +30,15 @@ class ConsultaIndividualService
         string $tipoPlaca,
         string $placa,
         string $usuario,
-        string $pass,
+        // string $pass,
         string $ip = ''
     ): array {
         $tipoPlaca = strtoupper(trim($tipoPlaca));
         $placa = strtoupper(trim($placa));
 
-        $userData = $this->validator->validUser($usuario, $pass);
+        // $userData = $this->validator->validUser($usuario, $pass);
+        
+        $userData = $this->validator->getInfoUser($usuario);
 
         if (!$userData) {
             return [

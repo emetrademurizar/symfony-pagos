@@ -34,7 +34,7 @@ class TotalPagoService
         string $noReferencia,
         string $noAutorizacion,
         string $usuario,
-        string $pass,
+        // string $pass,
         string $ip = ''
     ): array {
         $tipoPlaca = strtoupper(trim($tipoPlaca));
@@ -43,7 +43,8 @@ class TotalPagoService
         $noAutorizacion = trim($noAutorizacion);
         $totalCobrado = (float)$total;
 
-        $userData = $this->validator->validUser($usuario, $pass);
+        // $userData = $this->validator->validUser($usuario, $pass);
+        $userData = $this->validator->getInfoUser($usuario);
 
         if (!$userData) {
             return [

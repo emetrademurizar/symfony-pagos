@@ -32,10 +32,11 @@ class PagoIndividualService
      *   placa?: string
      * }> $remisiones
      */
-    public function execute(array $remisiones, string $usuario, string $pass, string $ip = ''): array
+    public function execute(array $remisiones, string $usuario, string $ip = ''): array
     {
 
-        $userData = $this->validator->validUser($usuario, $pass);
+        // $userData = $this->validator->validUser($usuario, $pass);
+        $userData = $this->validator->getInfoUser($usuario);
 
         if (!$userData) {
             return [

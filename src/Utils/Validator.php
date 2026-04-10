@@ -92,7 +92,58 @@ class Validator
 
     public function getInfoUser(string $usuario): array|false
     {
-        return false;
+        $usuario = trim($usuario);
+
+        if ($usuario === '') {
+            return false;
+        }
+
+        try {
+            $sql = "
+                SELECT
+                    uwb.CODIGO,
+                    uwb.USUARIO,
+                    uwb.PASSWORD,
+                    uwb.CAJA,
+                    uwb.ESTATUS AS ESTATUS_USUARIO,
+                    ub.ID_USUARIO_BANCO,
+                    ub.NOMBRE_BANCO,
+                    ub.ESTATUS AS ESTATUS_BANCO
+                FROM usuario_banco ub
+                INNER JOIN usuarios_ws_bancos uwb
+                    ON uwb.CODIGO = ub.CODIGO_USUARIO
+                WHERE ub.ID_USUARIO_BANCO = :usuario
+            ";
+
+            $stmt = $this->conn->prepare($sql);
+            $result = $stmt->executeQuery([
+                'usuario' => $usuario,
+            ]);
+
+            $row = $result->fetchAssociative();
+
+            if (!$row) {
+                return false;
+            }
+
+            if (($row['ESTATUS_USUARIO'] ?? '') !== 'A') {
+                return false;
+            }
+
+            if (($row['ESTATUS_BANCO'] ?? '') !== 'A') {
+                return false;
+            }
+
+            return [
+                'codigo' => $row['CODIGO'],
+                'usuario' => $row['USUARIO'],
+                'caja' => $row['CAJA'],
+                'id_usuario_banco' => $row['ID_USUARIO_BANCO'],
+                'nombre_banco' => $row['NOMBRE_BANCO'],
+            ];
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
 }

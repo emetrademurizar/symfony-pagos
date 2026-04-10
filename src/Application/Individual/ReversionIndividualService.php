@@ -32,13 +32,14 @@ class ReversionIndividualService
     public function execute(
         string $documento,
         string $usuario,
-        string $pass,
+        // string $pass,
         string $message,
         string $ip = ''
     ): array {
         $documento = trim($documento);
 
-        $userData = $this->validator->validUser($usuario, $pass);
+        // $userData = $this->validator->validUser($usuario, $pass);
+        $userData = $this->validator->getInfoUser($usuario);
 
         if (!$userData) {
             return [

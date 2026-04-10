@@ -64,7 +64,9 @@ class SoapController extends AbstractController
 
         $opName = strtolower($opNode->localName ?? $opNode->nodeName);
         $ip         = (string)($request->getClientIp() ?? '');
-
+        // =========================
+        // (0) Generar token JWT
+        // =========================
         if ($opName === 'token') {
             $clientId = $this->x($xpath, $opNode, 'ClientId');
             $clientSecret = $this->x($xpath, $opNode, 'ClientSecret');

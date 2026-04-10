@@ -30,13 +30,14 @@ class TotalConsultaService
         string $tipoPlaca,
         string $placa,
         string $usuario,
-        string $clave,
+        // string $clave,
         string $ip = ''
     ): array {
         $tipoPlaca = strtoupper(trim($tipoPlaca));
         $placa = strtoupper(trim($placa));
 
-        $userData = $this->validator->validUser($usuario, $clave);
+        // $userData = $this->validator->validUser($usuario, $clave);
+        $userData = $this->validator->getInfoUser($usuario);
 
         if (!$userData) {
             return [
