@@ -14,6 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use App\Security\JwtClientUser;
 use App\Utils\Validator;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use App\Utils\JwtHelper;
 
 class SoapController extends AbstractController
 {
@@ -26,7 +27,8 @@ class SoapController extends AbstractController
         TotalConsultaService $TotalConsultaService,
         TotalPagoService $TotalPagoService,
         Validator $validator,
-        JWTTokenManagerInterface $jwtManager
+        JWTTokenManagerInterface $jwtManager,
+        JwtHelper $jwtHelper
     ): Response{
         $raw = $request->getContent() ?? '';
         $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw); 
@@ -108,17 +110,24 @@ class SoapController extends AbstractController
 
             return $this->soapWrap($out, 200);
         }
-
+        $subject = $jwtHelper->getSubjectFromRequest($request);
+        if ($subject === false) {
+            return $this->soapWrap(
+                '<ERROR><COD>401</COD>
+                <MENSAJE>TOKEN INVALIDO O AUSENTE</MENSAJE></ERROR>',
+                401
+            );
+        }
         // =========================
         // (1) Consulta
         // =========================
         if ($opName === 'consulta') {
             $tipoPlaca = $this->x($xpath, $opNode, 'Tipo_Placa');
             $placa     = $this->x($xpath, $opNode, 'Placa');
-            $usuario   = $this->x($xpath, $opNode, 'Usuario');
-            $pass      = $this->x($xpath, $opNode, 'Pass');
+            // $usuario   = $this->x($xpath, $opNode, 'Usuario');
+            // $pass      = $this->x($xpath, $opNode, 'Pass');
 
-            $result = $consultaService->execute($tipoPlaca, $placa, $usuario, $pass, $ip);
+            $result = $consultaService->execute($tipoPlaca, $placa, $subject, $ip);
 
             if (isset($result['error'])) {
                 $out = '<ERROR>'
@@ -146,8 +155,8 @@ class SoapController extends AbstractController
         // (2) PAGO INDIVIDUAL
         // =========================
         if ($opName === 'pago') {
-            $usuario = $this->x($xpath, $opNode, 'Usuario');
-            $pass    = $this->x($xpath, $opNode, 'Pass');
+            // $usuario = $this->x($xpath, $opNode, 'Usuario');
+            // $pass    = $this->x($xpath, $opNode, 'Pass');
 
             $remisiones = [];
 
@@ -187,7 +196,7 @@ class SoapController extends AbstractController
                 }
             } 
 
-            $result = $pagoService->execute($remisiones, $usuario, $pass, $ip);
+            $result = $pagoService->execute($remisiones, $subject, $ip);
 
             if (isset($result['error'])) {
                 $out = '<ERROR>'
@@ -251,11 +260,11 @@ class SoapController extends AbstractController
 
         if ($opName === 'reversion') {
             $documento = $this->x($xpath, $opNode, 'Documento');
-            $usuario   = $this->x($xpath, $opNode, 'Usuario');
-            $pass      = $this->x($xpath, $opNode, 'Pass');
+            // $usuario   = $this->x($xpath, $opNode, 'Usuario');
+            // $pass      = $this->x($xpath, $opNode, 'Pass');
             $message   = $this->x($xpath, $opNode, 'Message');
 
-            $result = $ReversionService->execute($documento, $usuario, $pass, $message, $ip);
+            $result = $ReversionService->execute($documento, $subject, $message, $ip);
 
             if (isset($result['error'])) {
                 $out = '<ERROR>'
@@ -285,10 +294,10 @@ class SoapController extends AbstractController
         if ($opName === 'total') {
             $tipoPlaca = $this->x($xpath, $opNode, 'Tipo_Placa');
             $placa     = $this->x($xpath, $opNode, 'Placa');
-            $usuario   = $this->x($xpath, $opNode, 'Usuario');
-            $clave     = $this->x($xpath, $opNode, 'Pass');
+            // $usuario   = $this->x($xpath, $opNode, 'Usuario');
+            // $clave     = $this->x($xpath, $opNode, 'Pass');
 
-            $result = $TotalConsultaService->execute($tipoPlaca, $placa, $usuario, $clave, $ip);
+            $result = $TotalConsultaService->execute($tipoPlaca, $placa, $subject, $ip);
 
             if (isset($result['error'])) {
                 $out = '<ERROR>'
@@ -319,8 +328,8 @@ class SoapController extends AbstractController
             $total          = $this->x($xpath, $opNode, 'Total');
             $noReferencia   = $this->x($xpath, $opNode, 'No_Referencia');
             $noAutorizacion = $this->x($xpath, $opNode, 'No_Autorizacion');
-            $usuario        = $this->x($xpath, $opNode, 'Usuario');
-            $pass           = $this->x($xpath, $opNode, 'Pass');
+            // $usuario        = $this->x($xpath, $opNode, 'Usuario');
+            // $pass           = $this->x($xpath, $opNode, 'Pass');
 
             $result = $TotalPagoService->execute(
                 $tipoPlaca,
@@ -328,8 +337,8 @@ class SoapController extends AbstractController
                 $total,
                 $noReferencia,
                 $noAutorizacion,
-                $usuario,
-                $pass,
+                $subject,
+                // $pass,
                 $ip
             );
 
