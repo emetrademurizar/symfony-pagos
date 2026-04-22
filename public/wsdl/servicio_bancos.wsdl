@@ -146,6 +146,37 @@
                 </xsd:sequence>
             </xsd:complexType>
 
+            <xsd:complexType name="TokenResponseType">
+                <xsd:sequence>
+                    <xsd:element name="ACCESS_TOKEN" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="TOKEN_TYPE" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="EXPIRES_IN" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="EXPIRES_AT" type="xsd:string" minOccurs="0"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <!-- ========================= -->
+            <!-- token -->
+            <!-- ========================= -->
+
+            <xsd:element name="token">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="ClientId" type="xsd:string"/>
+                        <xsd:element name="ClientSecret" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="tokenResponse">
+                <xsd:complexType>
+                    <xsd:choice>
+                        <xsd:element name="TOKEN_RESPONSE" type="tns:TokenResponseType"/>
+                        <xsd:element name="ERROR" type="tns:ErrorType"/>
+                    </xsd:choice>
+                </xsd:complexType>
+            </xsd:element>
+
             <!-- ========================= -->
             <!-- consulta -->
             <!-- ========================= -->
@@ -155,8 +186,6 @@
                     <xsd:sequence>
                         <xsd:element name="Tipo_Placa" type="xsd:string"/>
                         <xsd:element name="Placa" type="xsd:string"/>
-                        <xsd:element name="Usuario" type="xsd:string"/>
-                        <xsd:element name="Pass" type="xsd:string"/>
                     </xsd:sequence>
                 </xsd:complexType>
             </xsd:element>
@@ -177,8 +206,6 @@
             <xsd:element name="pago">
                 <xsd:complexType>
                     <xsd:sequence>
-                        <xsd:element name="Usuario" type="xsd:string"/>
-                        <xsd:element name="Pass" type="xsd:string"/>
                         <xsd:element name="Remisiones" type="tns:RemisionPagoInputListType" minOccurs="0"/>
                         <xsd:element name="Remision" type="tns:RemisionPagoInputType" minOccurs="0" maxOccurs="unbounded"/>
                     </xsd:sequence>
@@ -202,8 +229,6 @@
                 <xsd:complexType>
                     <xsd:sequence>
                         <xsd:element name="Documento" type="xsd:string"/>
-                        <xsd:element name="Usuario" type="xsd:string"/>
-                        <xsd:element name="Pass" type="xsd:string"/>
                         <xsd:element name="Message" type="xsd:string" minOccurs="0"/>
                     </xsd:sequence>
                 </xsd:complexType>
@@ -227,8 +252,6 @@
                     <xsd:sequence>
                         <xsd:element name="Tipo_Placa" type="xsd:string"/>
                         <xsd:element name="Placa" type="xsd:string"/>
-                        <xsd:element name="Usuario" type="xsd:string"/>
-                        <xsd:element name="Pass" type="xsd:string"/>
                     </xsd:sequence>
                 </xsd:complexType>
             </xsd:element>
@@ -254,8 +277,6 @@
                         <xsd:element name="Total" type="xsd:string"/>
                         <xsd:element name="No_Referencia" type="xsd:string"/>
                         <xsd:element name="No_Autorizacion" type="xsd:string"/>
-                        <xsd:element name="Usuario" type="xsd:string"/>
-                        <xsd:element name="Pass" type="xsd:string"/>
                     </xsd:sequence>
                 </xsd:complexType>
             </xsd:element>
@@ -275,6 +296,14 @@
     <!-- ========================= -->
     <!-- Messages -->
     <!-- ========================= -->
+
+    <message name="tokenRequest">
+        <part name="parameters" element="tns:token"/>
+    </message>
+
+    <message name="tokenResponse">
+        <part name="parameters" element="tns:tokenResponse"/>
+    </message>
 
     <message name="consultaRequest">
         <part name="parameters" element="tns:consulta"/>
@@ -321,6 +350,11 @@
     <!-- ========================= -->
 
     <portType name="ServicioBancosPortType">
+        <operation name="token">
+            <input message="tns:tokenRequest"/>
+            <output message="tns:tokenResponse"/>
+        </operation>
+
         <operation name="consulta">
             <input message="tns:consultaRequest"/>
             <output message="tns:consultaResponse"/>
@@ -353,6 +387,16 @@
 
     <binding name="ServicioBancosBinding" type="tns:ServicioBancosPortType">
         <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+
+        <operation name="token">
+            <soap:operation soapAction="token"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+            <output>
+                <soap:body use="literal"/>
+            </output>
+        </operation>
 
         <operation name="consulta">
             <soap:operation soapAction="consulta"/>
