@@ -7,6 +7,7 @@ use App\Utils\Validator;
 use Doctrine\DBAL\Connection;
 use Psr\Log\LoggerInterface;
 
+
 class PagoIndividualService
 {
     private const TIPO_OPERA = 'W';

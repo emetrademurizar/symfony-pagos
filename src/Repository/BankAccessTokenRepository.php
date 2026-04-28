@@ -57,4 +57,32 @@ final class BankAccessTokenRepository
             'bank_client_id' => $bankClientId,
         ]);
     }
+
+    public function findActiveByHash(string $tokenHash): ?array
+    {
+        $sql = <<<SQL
+            SELECT
+                bat.ID AS TOKEN_ID,
+                bat.BANK_CLIENT_ID,
+                bat.TOKEN_PREFIX,
+                TO_CHAR(bat.EXPIRES_AT, 'YYYY-MM-DD HH24:MI:SS') AS EXPIRES_AT,
+                bc.BANK_CODE,
+                bc.BANK_NAME,
+                bc.ENVIRONMENT,
+                bc.CAJA
+            FROM BANK_ACCESS_TOKENS bat
+            INNER JOIN BANK_CLIENTS bc
+                ON bc.ID = bat.BANK_CLIENT_ID
+            WHERE bat.TOKEN_HASH = :token_hash
+            AND bat.STATUS = 'ACTIVE'
+            AND bat.REVOKED_AT IS NULL
+            AND bc.STATUS = 'A'
+        SQL;
+
+        $row = $this->conn->fetchAssociative($sql, [
+            'token_hash' => $tokenHash,
+        ]);
+
+        return $row ?: null;
+    }
 }

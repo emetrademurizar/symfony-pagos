@@ -4,11 +4,13 @@ namespace App\Utils;
 
 use Lexik\Bundle\JWTAuthenticationBundle\Encoder\JWTEncoderInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Psr\Log\LoggerInterface;
 
 class JwtHelper
 {
     public function __construct(
-        private readonly JWTEncoderInterface $jwtEncoder
+        private readonly JWTEncoderInterface $jwtEncoder,
+        private readonly LoggerInterface $logger
     ) {}
 
     public function getTokenFromRequest(Request $request): ?string
@@ -39,11 +41,18 @@ class JwtHelper
     {
         $token = $this->getTokenFromRequest($request);
 
+        
+
         if (!$token) {
             return false;
         }
 
         $payload = $this->decodeToken($token);
+        
+        $this->logger->info('token', [
+            'token'    => $token,
+            'payload'  => $payload
+        ]);
 
         if ($payload === false) {
             return false;

@@ -15,9 +15,17 @@ use App\Security\JwtClientUser;
 use App\Utils\Validator;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use App\Utils\JwtHelper;
+use App\Application\Security\BearerTokenAuthenticatorService;
+use Psr\Log\LoggerInterface;
+use App\Application\Security\RequestSecurityHeadersValidator;
+use App\Application\Security\ReplayGuardService;
 
 class SoapController extends AbstractController
 {
+    public function __construct(
+        private readonly LoggerInterface $logger
+    ) {}
+
     #[Route('/api/soap', methods: ['POST'])]
     public function handle(
         Request $request, 
@@ -28,7 +36,10 @@ class SoapController extends AbstractController
         TotalPagoService $TotalPagoService,
         Validator $validator,
         JWTTokenManagerInterface $jwtManager,
-        JwtHelper $jwtHelper
+        JwtHelper $jwtHelper,
+        BearerTokenAuthenticatorService $bearerAuthenticator,        
+        RequestSecurityHeadersValidator $headersValidator,
+        ReplayGuardService $replayGuardService,
     ): Response{
         $raw = $request->getContent() ?? '';
         $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw); 
@@ -110,22 +121,72 @@ class SoapController extends AbstractController
 
             return $this->soapWrap($out, 200);
         }
-        $subject = $jwtHelper->getSubjectFromRequest($request);
-        if ($subject === false) {
+        
+        // $this->logger->info('Solicitud SOAP recibida', [
+        //     'opname'    => $opName,
+        //     'request ' => $request
+        // ]);
+
+        // =========================
+        // Validar token y acceso
+        // =========================
+        try {
+            $authenticatedClient = $bearerAuthenticator->authenticate($request);
+        } catch (\RuntimeException $e) {
             return $this->soapWrap(
-                '<ERROR><COD>401</COD>
-                <MENSAJE>TOKEN INVALIDO O AUSENTE</MENSAJE></ERROR>',
+                '<ERROR><COD>401</COD><MENSAJE>TOKEN INVALIDO O AUSENTE 2</MENSAJE></ERROR>',
                 401
             );
         }
+
+        //Validar headers
+        try {
+            $securityHeaders = $headersValidator->validateSoapHeaders(
+                $request,
+                300
+            );
+        } catch (\RuntimeException $e) {
+            return $this->soapWrap(
+                '<ERROR><COD>400</COD><MENSAJE>HEADERS DE SEGURIDAD INVALIDOS: '
+                . htmlspecialchars($e->getMessage())
+                . '</MENSAJE></ERROR>',
+                400
+            );
+        }
+
+        
+        $requestId = $securityHeaders['request_id'];
+        $requestTimestamp = $securityHeaders['timestamp'];
+
+        try {
+            $replayGuardService->validateAndRegister(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                900
+            );
+        } catch (\RuntimeException $e) {
+            return $this->soapWrap(
+                '<ERROR><COD>409</COD><MENSAJE>REQUEST_ID REPETIDO</MENSAJE></ERROR>',
+                409
+            );
+        }
+
+        $subject = (string) $authenticatedClient->bankClientId;
+
+        $this->logger->info('Solicitud SOAP recibida', [
+            'operacion' => $opName,
+            'subject' => $subject,
+            'ip' => $ip,
+            'requestId' => $requestId,
+            'timeStamp' => $requestTimestamp
+        ]);
+
         // =========================
         // (1) Consulta
         // =========================
         if ($opName === 'consulta') {
             $tipoPlaca = $this->x($xpath, $opNode, 'Tipo_Placa');
             $placa     = $this->x($xpath, $opNode, 'Placa');
-            // $usuario   = $this->x($xpath, $opNode, 'Usuario');
-            // $pass      = $this->x($xpath, $opNode, 'Pass');
 
             $result = $consultaService->execute($tipoPlaca, $placa, $subject, $ip);
 
@@ -155,8 +216,6 @@ class SoapController extends AbstractController
         // (2) PAGO INDIVIDUAL
         // =========================
         if ($opName === 'pago') {
-            // $usuario = $this->x($xpath, $opNode, 'Usuario');
-            // $pass    = $this->x($xpath, $opNode, 'Pass');
 
             $remisiones = [];
 
@@ -260,8 +319,6 @@ class SoapController extends AbstractController
 
         if ($opName === 'reversion') {
             $documento = $this->x($xpath, $opNode, 'Documento');
-            // $usuario   = $this->x($xpath, $opNode, 'Usuario');
-            // $pass      = $this->x($xpath, $opNode, 'Pass');
             $message   = $this->x($xpath, $opNode, 'Message');
 
             $result = $ReversionService->execute($documento, $subject, $message, $ip);
@@ -294,8 +351,6 @@ class SoapController extends AbstractController
         if ($opName === 'total') {
             $tipoPlaca = $this->x($xpath, $opNode, 'Tipo_Placa');
             $placa     = $this->x($xpath, $opNode, 'Placa');
-            // $usuario   = $this->x($xpath, $opNode, 'Usuario');
-            // $clave     = $this->x($xpath, $opNode, 'Pass');
 
             $result = $TotalConsultaService->execute($tipoPlaca, $placa, $subject, $ip);
 
@@ -328,8 +383,6 @@ class SoapController extends AbstractController
             $total          = $this->x($xpath, $opNode, 'Total');
             $noReferencia   = $this->x($xpath, $opNode, 'No_Referencia');
             $noAutorizacion = $this->x($xpath, $opNode, 'No_Autorizacion');
-            // $usuario        = $this->x($xpath, $opNode, 'Usuario');
-            // $pass           = $this->x($xpath, $opNode, 'Pass');
 
             $result = $TotalPagoService->execute(
                 $tipoPlaca,
