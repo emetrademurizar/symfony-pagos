@@ -5,6 +5,7 @@ namespace App\Application\Individual;
 use Doctrine\DBAL\Connection;
 use App\Utils\Validator;
 use App\Utils\Bitacora;
+use Psr\Log\LoggerInterface;
 
 class TotalConsultaService
 {
@@ -13,7 +14,8 @@ class TotalConsultaService
     public function __construct(
         private readonly Connection $conn,
         private readonly Validator $validator,
-        private readonly Bitacora $bitacora
+        private readonly Bitacora $bitacora,
+        private readonly LoggerInterface $logger
     ) {}
 
     private function commitBitacora(): void
@@ -39,20 +41,19 @@ class TotalConsultaService
         // $userData = $this->validator->validUser($usuario, $clave);
         $userData = $this->validator->getInfoUser($usuario);
 
-        if (!$userData) {
-            return [
-                'error' => [
-                    'cod' => '001',
-                    'mensaje' => 'USUARIO Y/O CONTRASEÑA NO VALIDOS',
-                ],
-            ];
-        }
+        $this->logger->info('Solicitud usuario recibida', [
+            'user'    => $usuario,
+            'data'    => $userData,
+        ]);
+
+        $nombreBanco = $userData['bank_name'] . ' ' . $userData['environment'];
 
 
         if ($tipoPlaca === '' || !$this->validator->validPlaca($placa)) {
             $this->bitacora->bitacora(
                 ip: $ip,
                 usuario: $usuario,
+                nombreBanco: $nombreBanco,
                 serie: '',
                 remision: '',
                 referencia: '',
@@ -157,6 +158,7 @@ class TotalConsultaService
             $this->bitacora->bitacora(
                 ip: $ip,
                 usuario: $usuario,
+                nombreBanco: $nombreBanco,
                 serie: '',
                 remision: '',
                 referencia: '',
@@ -182,6 +184,7 @@ class TotalConsultaService
             $this->bitacora->bitacora(
                 ip: $ip,
                 usuario: $usuario,
+                nombreBanco: $nombreBanco,
                 serie: '',
                 remision: '',
                 referencia: '',
@@ -218,6 +221,7 @@ class TotalConsultaService
         $this->bitacora->bitacora(
             ip: $ip,
             usuario: $usuario,
+            nombreBanco: $nombreBanco,
             serie: '',
             remision: '',
             referencia: '',

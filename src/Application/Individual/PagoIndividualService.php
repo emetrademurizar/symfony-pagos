@@ -38,17 +38,14 @@ class PagoIndividualService
 
         // $userData = $this->validator->validUser($usuario, $pass);
         $userData = $this->validator->getInfoUser($usuario);
-
-        if (!$userData) {
-            return [
-                'error' => [
-                    'cod' => '001',
-                    'mensaje' => 'USUARIO Y/O CONTRASEÑA NO VALIDOS',
-                ],
-            ];
-        }
+        
+        $this->logger->info('Solicitud usuario recibida', [
+            'user'    => $usuario,
+            'data'    => $userData,
+        ]);
 
         $caja = $userData['caja'] ?? '';
+        $nombreBanco = $userData['bank_name'] . ' ' . $userData['environment'];
 
         if (count($remisiones) === 0) {
             return [
@@ -160,6 +157,7 @@ class PagoIndividualService
                     $this->bitacora->bitacora(
                         ip: $ip,
                         usuario: $usuario,
+                        nombreBanco: $nombreBanco,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -187,6 +185,7 @@ class PagoIndividualService
                     $this->bitacora->bitacora(
                         ip: $ip,
                         usuario: $usuario,
+                        nombreBanco: $nombreBanco,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -215,6 +214,7 @@ class PagoIndividualService
                     $this->bitacora->bitacora(
                         ip: $ip,
                         usuario: $usuario,
+                        nombreBanco: $nombreBanco,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -244,6 +244,7 @@ class PagoIndividualService
                         $this->bitacora->bitacora(
                             ip: $ip,
                             usuario: $usuario,
+                            nombreBanco: $nombreBanco,
                             serie: $serie,
                             remision: $remision,
                             referencia: $referencia,
@@ -271,6 +272,7 @@ class PagoIndividualService
                     $this->bitacora->bitacora(
                         ip: $ip,
                         usuario: $usuario,
+                        nombreBanco: $nombreBanco,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -302,6 +304,7 @@ class PagoIndividualService
                     $this->bitacora->bitacora(
                         ip: $ip,
                         usuario: $usuario,
+                        nombreBanco: $nombreBanco,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -369,6 +372,7 @@ class PagoIndividualService
                     $this->bitacora->bitacora(
                         ip: $ip,
                         usuario: $usuario,
+                        nombreBanco: $nombreBanco,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -463,6 +467,7 @@ class PagoIndividualService
                 $this->bitacora->bitacora(
                     ip: $ip,
                     usuario: $usuario,
+                    nombreBanco: $nombreBanco,
                     serie: $serie,
                     remision: $remision,
                     referencia: $referencia,

@@ -41,21 +41,20 @@ class ReversionIndividualService
         // $userData = $this->validator->validUser($usuario, $pass);
         $userData = $this->validator->getInfoUser($usuario);
 
-        if (!$userData) {
-            return [
-                'error' => [
-                    'cod' => '001',
-                    'mensaje' => 'USUARIO O PASSWORD INVALIDO',
-                ],
-            ];
-        }
 
         $usuario_graba = $userData['caja'] ?? '';
+        $this->logger->info('Solicitud usuario recibida', [
+            'user'    => $usuario,
+            'data'    => $userData,
+        ]);
+
+        $nombreBanco = $userData['bank_name'] . ' ' . $userData['environment'];
 
         if ($documento === '' || !ctype_digit($documento)) {
             $this->bitacora->bitacora(
                 ip: $ip,
                 usuario: $usuario,
+                nombreBanco: $nombreBanco,                
                 serie: '',
                 remision: '',
                 referencia: '',
@@ -98,6 +97,7 @@ class ReversionIndividualService
             $this->bitacora->bitacora(
                 ip: $ip,
                 usuario: $usuario,
+                nombreBanco: $nombreBanco,  
                 serie: '',
                 remision: '',
                 referencia: '',
@@ -142,6 +142,7 @@ class ReversionIndividualService
             $this->bitacora->bitacora(
                 ip: $ip,
                 usuario: $usuario,
+                nombreBanco: $nombreBanco,  
                 serie: '',
                 remision: '',
                 referencia: $noReferencia,
@@ -214,6 +215,7 @@ class ReversionIndividualService
             $this->bitacora->bitacora(
                 ip: $ip,
                 usuario: $usuario,
+                nombreBanco: $nombreBanco,  
                 serie: '',
                 remision: '',
                 referencia: $noReferencia,
@@ -247,6 +249,7 @@ class ReversionIndividualService
             $this->bitacora->bitacora(
                 ip: $ip,
                 usuario: $usuario,
+                nombreBanco: $nombreBanco,  
                 serie: $serie,
                 remision: $remision,
                 referencia: $noReferencia,

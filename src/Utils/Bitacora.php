@@ -15,6 +15,7 @@ class Bitacora
     public function bitacora(
         string $ip,
         string $usuario,
+        string $nombreBanco,
         ?string $serie,
         ?string $remision,
         ?string $referencia,
@@ -47,7 +48,8 @@ class Bitacora
                 TRANSACCION,
                 IP,
                 FECHA,
-                USUARIO,
+                BANK_CLIENT_ID,
+                NOMBRE_BANCO,
                 SERIE,
                 REMISION,
                 DOCUMENTO,
@@ -65,7 +67,8 @@ class Bitacora
                 :TRANSACCION,
                 :IP,
                 SYSDATE,
-                :USUARIO,
+                :BANK_CLIENT_ID,
+                :NOMBRE_BANCO,
                 :SERIE,
                 :REMISION,
                 :DOCUMENTO,
@@ -91,7 +94,8 @@ class Bitacora
 
         oci_bind_by_name($stm, ':TRANSACCION', $transaccion);
         oci_bind_by_name($stm, ':IP', $ip);
-        oci_bind_by_name($stm, ':USUARIO', $usuario);
+        oci_bind_by_name($stm, ':BANK_CLIENT_ID', $usuario);
+        oci_bind_by_name($stm, ':NOMBRE_BANCO', $nombreBanco);
         oci_bind_by_name($stm, ':SERIE', $serie);
         oci_bind_by_name($stm, ':REMISION', $remision);
         oci_bind_by_name($stm, ':DOCUMENTO', $doc);

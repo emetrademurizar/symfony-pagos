@@ -5,6 +5,7 @@ namespace App\Application\Individual;
 use Doctrine\DBAL\Connection;
 use App\Utils\Validator;
 use App\Utils\Bitacora;
+use Psr\Log\LoggerInterface;
 
 class ConsultaIndividualService
 {
@@ -13,7 +14,8 @@ class ConsultaIndividualService
     public function __construct(
         private readonly Connection $conn,
         private readonly Validator $validator,
-        private readonly Bitacora $bitacora
+        private readonly Bitacora $bitacora,
+        private readonly LoggerInterface $logger
     ) {}
 
     private function commitBitacora(): void
@@ -34,25 +36,22 @@ class ConsultaIndividualService
         string $ip = ''
     ): array {
         $tipoPlaca = strtoupper(trim($tipoPlaca));
-        $placa = strtoupper(trim($placa));
+        $placa = strtoupper(trim($placa));    
 
-        // $userData = $this->validator->validUser($usuario, $pass);
-        
         $userData = $this->validator->getInfoUser($usuario);
 
-        if (!$userData) {
-            return [
-                'error' => [
-                    'cod' => '001',
-                    'mensaje' => 'USUARIO Y/O PASSWORD INVALIDO',
-                ],
-            ];
-        }
+        $this->logger->info('Solicitud usuario recibida', [
+            'user'    => $usuario,
+            'data'    => $userData,
+        ]);
+
+        $nombreBanco = $userData['bank_name'] . ' ' . $userData['environment'];
 
         if ($tipoPlaca === '' || !$this->validator->validPlaca($placa)) {
             $this->bitacora->bitacora(
                 ip: $ip,
                 usuario: $usuario,
+                nombreBanco: $nombreBanco,
                 serie: '',
                 remision: '',
                 referencia: '',
@@ -157,6 +156,7 @@ class ConsultaIndividualService
             $this->bitacora->bitacora(
                 ip: $ip,
                 usuario: $usuario,
+                nombreBanco: $nombreBanco,
                 serie: '',
                 remision: '',
                 referencia: '',
@@ -182,6 +182,7 @@ class ConsultaIndividualService
             $this->bitacora->bitacora(
                 ip: $ip,
                 usuario: $usuario,
+                nombreBanco: $nombreBanco,
                 serie: '',
                 remision: '',
                 referencia: '',
@@ -228,6 +229,7 @@ class ConsultaIndividualService
             $this->bitacora->bitacora(
                 ip: $ip,
                 usuario: $usuario,
+                nombreBanco: $nombreBanco,
                 serie: (string)$r['serie'],
                 remision: (string)$r['numero'],
                 referencia: '',

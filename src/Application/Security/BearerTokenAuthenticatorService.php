@@ -18,6 +18,9 @@ final class BearerTokenAuthenticatorService
     {
         $authHeader = (string) $request->headers->get('Authorization', '');
 
+        $this->logger->info('HEADER', [
+            'authHeader'    => $authHeader,
+        ]);
 
         if (!str_starts_with($authHeader, 'Bearer ')) {
             throw new \RuntimeException('missing_bearer_token');
@@ -39,8 +42,10 @@ final class BearerTokenAuthenticatorService
             throw new \RuntimeException('invalid_token');
         }
 
-        $expiresAt = new \DateTimeImmutable((string) $row['EXPIRES_AT']);
-        $now = new \DateTimeImmutable('now');
+        $tz = new \DateTimeZone('America/Guatemala');
+
+        $expiresAt = new \DateTimeImmutable((string) $row['EXPIRES_AT'], $tz);
+        $now = new \DateTimeImmutable('now', $tz);
         $this->logger->info('Authenticating request with bearer token', [
             'token' => $token,
             'tokenHash' => $tokenHash,

@@ -90,34 +90,33 @@ class Validator
         }
     }
 
-    public function getInfoUser(string $usuario): array|false
+    public function getInfoUser(int|string $bankClientId): array|false
     {
-        $usuario = trim($usuario);
+        $bankClientId = trim($bankClientId);
 
-        if ($usuario === '') {
+        if ($bankClientId === '' || !ctype_digit($bankClientId)) {
             return false;
         }
 
         try {
             $sql = "
                 SELECT
-                    uwb.CODIGO,
-                    uwb.USUARIO,
-                    uwb.PASSWORD,
-                    uwb.CAJA,
-                    uwb.ESTATUS AS ESTATUS_USUARIO,
-                    ub.ID_USUARIO_BANCO,
-                    ub.NOMBRE_BANCO,
-                    ub.ESTATUS AS ESTATUS_BANCO
-                FROM usuario_banco ub
-                INNER JOIN usuarios_ws_bancos uwb
-                    ON uwb.CODIGO = ub.CODIGO_USUARIO
-                WHERE ub.ID_USUARIO_BANCO = :usuario
+                    ID,
+                    CODIGO_USUARIO_BANCO,
+                    BANK_CODE,
+                    BANK_NAME,
+                    ENVIRONMENT,
+                    STATUS,
+                    RATE_LIMIT_PER_MIN,
+                    CLOCK_SKEW_SECONDS,
+                    CAJA
+                FROM BANK_CLIENTS
+                WHERE ID = :bank_client_id
             ";
 
             $stmt = $this->conn->prepare($sql);
             $result = $stmt->executeQuery([
-                'usuario' => $usuario,
+                'bank_client_id' => (int) $bankClientId,
             ]);
 
             $row = $result->fetchAssociative();
@@ -126,20 +125,19 @@ class Validator
                 return false;
             }
 
-            if (($row['ESTATUS_USUARIO'] ?? '') !== 'A') {
-                return false;
-            }
-
-            if (($row['ESTATUS_BANCO'] ?? '') !== 'A') {
+            if (($row['STATUS'] ?? '') !== 'A') {
                 return false;
             }
 
             return [
-                'codigo' => $row['CODIGO'],
-                'usuario' => $row['USUARIO'],
+                'bank_client_id' => (int) $row['ID'],
+                'codigo_usuario_banco' => (int) $row['CODIGO_USUARIO_BANCO'],
+                'bank_code' => $row['BANK_CODE'],
+                'bank_name' => $row['BANK_NAME'],
+                'environment' => $row['ENVIRONMENT'],
                 'caja' => $row['CAJA'],
-                'id_usuario_banco' => $row['ID_USUARIO_BANCO'],
-                'nombre_banco' => $row['NOMBRE_BANCO'],
+                'rate_limit_per_min' => (int) $row['RATE_LIMIT_PER_MIN'],
+                'clock_skew_seconds' => (int) $row['CLOCK_SKEW_SECONDS'],
             ];
         } catch (\Throwable) {
             return false;

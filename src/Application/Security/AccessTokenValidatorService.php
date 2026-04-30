@@ -3,11 +3,13 @@
 namespace App\Application\Security;
 
 use App\Repository\BankAccessTokenRepository;
+use Psr\Log\LoggerInterface;
 
 final class AccessTokenValidatorService
 {
     public function __construct(
-        private readonly BankAccessTokenRepository $tokenRepository
+        private readonly BankAccessTokenRepository $tokenRepository,
+        private readonly LoggerInterface $logger
     ) {
     }
 
@@ -24,6 +26,7 @@ final class AccessTokenValidatorService
         // validar expiración
         $now = new \DateTimeImmutable('now');
         $expiresAt = new \DateTimeImmutable($tokenRow['EXPIRES_AT']);
+
 
         if ($expiresAt <= $now) {
             throw new \RuntimeException('token_expired');

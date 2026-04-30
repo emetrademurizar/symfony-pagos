@@ -77,55 +77,7 @@ class SoapController extends AbstractController
 
         $opName = strtolower($opNode->localName ?? $opNode->nodeName);
         $ip         = (string)($request->getClientIp() ?? '');
-        // =========================
-        // (0) Generar token JWT
-        // =========================
-        if ($opName === 'token') {
-            $clientId = $this->x($xpath, $opNode, 'ClientId');
-            $clientSecret = $this->x($xpath, $opNode, 'ClientSecret');
-
-            if ($clientId === '' || $clientSecret === '') {
-                return $this->soapWrap(
-                    '<ERROR><COD>400</COD><MENSAJE>CLIENTID Y CLIENTSECRET SON REQUERIDOS</MENSAJE></ERROR>',
-                    400
-                );
-            }
-
-            $usuarioValido = $validator->validUser($clientId, $clientSecret);
-
-            if ($usuarioValido === false) {
-                return $this->soapWrap(
-                    '<ERROR><COD>401</COD><MENSAJE>CREDENCIALES INVALIDAS</MENSAJE></ERROR>',
-                    401
-                );
-            }
-
-            $user = new JwtClientUser($clientId);
-            $tz = new \DateTimeZone('America/Guatemala');
-            $now = new \DateTimeImmutable('now', $tz);
-            $endOfDay = $now->setTime(23, 59, 59);
-            
-            $payload = [
-                'sub' => $clientId,
-                'exp' => $endOfDay->getTimestamp(),
-            ];
-
-            $token = $jwtManager->createFromPayload($user, $payload);
-
-            $out = '<TOKEN_RESPONSE>'
-                . '<ACCESS_TOKEN>' . htmlspecialchars($token, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</ACCESS_TOKEN>'
-                . '<TOKEN_TYPE>Bearer</TOKEN_TYPE>'
-                . '<EXPIRES_IN>' . ($endOfDay->getTimestamp() - $now->getTimestamp()) . '</EXPIRES_IN>'
-                . '<EXPIRES_AT>' . htmlspecialchars($endOfDay->format('Y-m-d H:i:s'), ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</EXPIRES_AT>'
-            . '</TOKEN_RESPONSE>';
-
-            return $this->soapWrap($out, 200);
-        }
-        
-        // $this->logger->info('Solicitud SOAP recibida', [
-        //     'opname'    => $opName,
-        //     'request ' => $request
-        // ]);
+    
 
         // =========================
         // Validar token y acceso
@@ -134,7 +86,7 @@ class SoapController extends AbstractController
             $authenticatedClient = $bearerAuthenticator->authenticate($request);
         } catch (\RuntimeException $e) {
             return $this->soapWrap(
-                '<ERROR><COD>401</COD><MENSAJE>TOKEN INVALIDO O AUSENTE 2</MENSAJE></ERROR>',
+                '<ERROR><COD>401</COD><MENSAJE>TOKEN INVALIDO O AUSENTE</MENSAJE></ERROR>',
                 401
             );
         }

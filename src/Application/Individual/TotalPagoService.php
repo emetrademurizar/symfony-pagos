@@ -46,16 +46,13 @@ class TotalPagoService
         // $userData = $this->validator->validUser($usuario, $pass);
         $userData = $this->validator->getInfoUser($usuario);
 
-        if (!$userData) {
-            return [
-                'error' => [
-                    'cod' => '001',
-                    'mensaje' => 'USUARIO Y/O CONTRASEÑA NO VALIDOS',
-                ],
-            ];
-        }
+        $this->logger->info('Solicitud usuario recibida', [
+            'user'    => $usuario,
+            'data'    => $userData,
+        ]);
 
-        $caja = $userData['CAJA'] ?? $userData['caja'] ?? '';
+        $caja = $userData['caja'] ?? '';
+        $nombreBanco = $userData['bank_name'] . ' ' . $userData['environment'];
 
         if ($tipoPlaca === '' || !$this->validator->validPlaca($placa)) {
             return [
@@ -250,6 +247,7 @@ class TotalPagoService
                     $this->bitacora->bitacora(
                         ip: $ip,
                         usuario: $usuario,
+                        nombreBanco: $nombreBanco,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -277,6 +275,7 @@ class TotalPagoService
                     $this->bitacora->bitacora(
                         ip: $ip,
                         usuario: $usuario,
+                        nombreBanco: $nombreBanco,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -305,6 +304,7 @@ class TotalPagoService
                     $this->bitacora->bitacora(
                         ip: $ip,
                         usuario: $usuario,
+                        nombreBanco: $nombreBanco,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -334,6 +334,7 @@ class TotalPagoService
                         $this->bitacora->bitacora(
                             ip: $ip,
                             usuario: $usuario,
+                            nombreBanco: $nombreBanco,
                             serie: $serie,
                             remision: $remision,
                             referencia: $referencia,
@@ -361,6 +362,7 @@ class TotalPagoService
                     $this->bitacora->bitacora(
                         ip: $ip,
                         usuario: $usuario,
+                        nombreBanco: $nombreBanco,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -392,6 +394,7 @@ class TotalPagoService
                     $this->bitacora->bitacora(
                         ip: $ip,
                         usuario: $usuario,
+                        nombreBanco: $nombreBanco,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -440,6 +443,7 @@ class TotalPagoService
                     $this->bitacora->bitacora(
                         ip: $ip,
                         usuario: $usuario,
+                        nombreBanco: $nombreBanco,
                         serie: $serie,
                         remision: $remision,
                         referencia: $referencia,
@@ -536,6 +540,7 @@ class TotalPagoService
                 $this->bitacora->bitacora(
                     ip: $ip,
                     usuario: $usuario,
+                    nombreBanco: $nombreBanco,
                     serie: $serie,
                     remision: $remision,
                     referencia: $referencia,
