@@ -93,8 +93,9 @@ class SoapController extends AbstractController
 
         //Validar headers
         try {
-            $securityHeaders = $headersValidator->validateSoapHeaders(
+            $securityHeaders = $headersValidator->validateHeaders(
                 $request,
+                'application/soap+xml',
                 300
             );
         } catch (\RuntimeException $e) {

@@ -6,9 +6,8 @@ use Symfony\Component\HttpFoundation\Request;
 
 final class RequestSecurityHeadersValidator
 {
-    public function validateSoapHeaders(Request $request, int $clockSkewSeconds = 300): array
-    {
-        $this->validateContentType($request);
+    public function validateHeaders( Request $request, string $expectedContentType, int $clockSkewSeconds = 300): array {
+        $this->validateContentType($request, $expectedContentType);
         $requestId = $this->validateRequestId($request);
         $timestamp = $this->validateTimestamp($request, $clockSkewSeconds);
 
@@ -18,11 +17,11 @@ final class RequestSecurityHeadersValidator
         ];
     }
 
-    private function validateContentType(Request $request): void
+    private function validateContentType(Request $request, string $expectedContentType): void
     {
         $contentType = strtolower((string) $request->headers->get('Content-Type', ''));
 
-        if (!str_contains($contentType, 'application/soap+xml')) {
+        if (!str_contains($contentType, strtolower($expectedContentType))) {
             throw new \RuntimeException('invalid_content_type');
         }
     }

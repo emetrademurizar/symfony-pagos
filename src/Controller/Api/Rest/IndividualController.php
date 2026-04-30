@@ -12,27 +12,65 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
-use App\Utils\JwtHelper;
+use App\Application\Security\BearerTokenAuthenticatorService;
+use Psr\Log\LoggerInterface;
+use App\Application\Security\RequestSecurityHeadersValidator;
+use App\Application\Security\ReplayGuardService;
 
 class IndividualController extends AbstractController
 {
+    public function __construct(
+        private readonly LoggerInterface $logger
+    ) {}
     
     #[Route('/api/rest/individual/consulta', methods: ['POST'])]
-    public function consulta(Request $request, ConsultaIndividualService $service, JwtHelper $jwtHelper): JsonResponse
+    public function consulta(Request $request, ConsultaIndividualService $service,
+        BearerTokenAuthenticatorService $bearerAuthenticator,        
+        RequestSecurityHeadersValidator $headersValidator,
+        ReplayGuardService $replayGuardService): JsonResponse
     {
-        $subject = $jwtHelper->getSubjectFromRequest($request);
-
-        if ($subject === false) {
+        try{
+            $authenticatedClient = $bearerAuthenticator->authenticate($request);
+        } catch(\RuntimeException $e){
             return new JsonResponse([
                 'error' => [
                     'cod' => '401',
                     'mensaje' => 'TOKEN INVALIDO O AUSENTE'
                 ]
-            ]);
+            ], 401);
         }
 
+        try {
+            $securityHeaders = $headersValidator->validateHeaders($request, 'application/json', 300);
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '400',
+                    'mensaje' => 'HEADERS DE SEGURIDAD INVALIDOS: ' . $e->getMessage()
+                ]
+            ], 400);
+        }
 
-        $data = json_decode($request->getContent(), true);
+        $requestId = $securityHeaders['request_id'];
+
+        try {
+            $replayGuardService->validateAndRegister(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                900
+            );
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '409',
+                    'mensaje' => 'REQUEST_ID REPETIDO'
+                ]
+            ], 409);
+        }
+
+        $data = json_decode($request->getContent(), true) ?? [];
+
+        $subject = (string) $authenticatedClient->bankClientId;
 
         $result = $service->execute(
             (string) ($data['tipo_placa'] ?? ''),
@@ -46,24 +84,56 @@ class IndividualController extends AbstractController
     }
 
     #[Route('/api/rest/individual/pago', methods: ['POST'])]
-    public function pago(Request $request, PagoIndividualService $service, JwtHelper $jwtHelper): JsonResponse
+    public function pago(Request $request, PagoIndividualService $service,
+        BearerTokenAuthenticatorService $bearerAuthenticator,
+        RequestSecurityHeadersValidator $headersValidator,
+        ReplayGuardService $replayGuardService
+    ): JsonResponse
     {
-        $subject = $jwtHelper->getSubjectFromRequest($request);
-
-        if ($subject === false) {
+        try{
+            $authenticatedClient = $bearerAuthenticator->authenticate($request);
+        } catch(\RuntimeException $e){
             return new JsonResponse([
                 'error' => [
                     'cod' => '401',
                     'mensaje' => 'TOKEN INVALIDO O AUSENTE'
                 ]
-            ]);
+            ], 401);
+        }
+
+        try {
+            $securityHeaders = $headersValidator->validateHeaders($request, 'application/json', 300);
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '400',
+                    'mensaje' => 'HEADERS DE SEGURIDAD INVALIDOS: ' . $e->getMessage()
+                ]
+            ], 400);
+        }
+
+        $requestId = $securityHeaders['request_id'];
+
+        try {
+            $replayGuardService->validateAndRegister(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                900
+            );
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '409',
+                    'mensaje' => 'REQUEST_ID REPETIDO'
+                ]
+            ], 409);
         }
 
         $data = json_decode($request->getContent(), true) ?? [];
 
+        $subject = (string) $authenticatedClient->bankClientId;
+
         $remisiones = is_array($data['remisiones'] ?? null) ? $data['remisiones'] : [];
-        // $usuario    = (string)($data['usuario'] ?? '');
-        // $pass       = (string)($data['pass'] ?? '');
         $ip         = (string)($request->getClientIp() ?? '');
         $result = $service->execute($remisiones, $subject, $ip);
 
@@ -71,24 +141,56 @@ class IndividualController extends AbstractController
     }
 
     #[Route('/api/rest/individual/reversion', methods: ['POST'])]
-    public function reversion(Request $request, ReversionIndividualService $service, JwtHelper $jwtHelper): JsonResponse
+    public function reversion(Request $request, ReversionIndividualService $service, 
+        BearerTokenAuthenticatorService $bearerAuthenticator,
+        RequestSecurityHeadersValidator $headersValidator,
+        ReplayGuardService $replayGuardService
+    ): JsonResponse
     {   
-        $subject = $jwtHelper->getSubjectFromRequest($request);
-
-        if ($subject === false) {
+        try{
+            $authenticatedClient = $bearerAuthenticator->authenticate($request);
+        } catch(\RuntimeException $e){
             return new JsonResponse([
                 'error' => [
                     'cod' => '401',
                     'mensaje' => 'TOKEN INVALIDO O AUSENTE'
                 ]
-            ]);
+            ], 401);
+        }
+
+        try {
+            $securityHeaders = $headersValidator->validateHeaders($request, 'application/json', 300);
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '400',
+                    'mensaje' => 'HEADERS DE SEGURIDAD INVALIDOS: ' . $e->getMessage()
+                ]
+            ], 400);
+        }
+
+        $requestId = $securityHeaders['request_id'];
+
+        try {
+            $replayGuardService->validateAndRegister(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                900
+            );
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '409',
+                    'mensaje' => 'REQUEST_ID REPETIDO'
+                ]
+            ], 409);
         }
 
         $data = json_decode($request->getContent(), true) ?? [];
 
+        $subject = (string) $authenticatedClient->bankClientId;
+
         $documento  = (string)($data['documento'] ?? '');
-        // $usuario    = (string)($data['usuario'] ?? '');
-        // $pass       = (string)($data['pass'] ?? '');
         $message     = (string)($data['message'] ?? '');
         $ip         = (string)($request->getClientIp() ?? '');
 
@@ -100,26 +202,59 @@ class IndividualController extends AbstractController
     }
 
     #[Route('/api/rest/individual/total', methods: ['POST'])]
-    public function totalConsulta(Request $request, TotalConsultaService $service, JwtHelper $jwtHelper): JsonResponse
+    public function totalConsulta(Request $request, TotalConsultaService $service, 
+        BearerTokenAuthenticatorService $bearerAuthenticator,
+        RequestSecurityHeadersValidator $headersValidator,
+        ReplayGuardService $replayGuardService
+    ): JsonResponse
     {
-        $subject = $jwtHelper->getSubjectFromRequest($request);
 
-        if ($subject === false) {
+        try{
+            $authenticatedClient = $bearerAuthenticator->authenticate($request);
+        } catch(\RuntimeException $e){
             return new JsonResponse([
                 'error' => [
                     'cod' => '401',
                     'mensaje' => 'TOKEN INVALIDO O AUSENTE'
                 ]
-            ]);
+            ], 401);
+        }
+
+        try {
+            $securityHeaders = $headersValidator->validateHeaders($request, 'application/json', 300);
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '400',
+                    'mensaje' => 'HEADERS DE SEGURIDAD INVALIDOS: ' . $e->getMessage()
+                ]
+            ], 400);
+        }
+
+        $requestId = $securityHeaders['request_id'];
+
+        try {
+            $replayGuardService->validateAndRegister(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                900
+            );
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '409',
+                    'mensaje' => 'REQUEST_ID REPETIDO'
+                ]
+            ], 409);
         }
 
         $data = json_decode($request->getContent(), true) ?? [];
 
+        $subject = (string) $authenticatedClient->bankClientId;
+
         // Obtener los 4 parámetros desde el body
         $tipoPlaca = (string) ($data['tipo_placa'] ?? '');
         $placa     = (string) ($data['placa'] ?? '');
-        // $usuario   = (string) ($data['usuario'] ?? '');
-        // $clave     = (string) ($data['pass'] ?? '');
         $ip         = (string)($request->getClientIp() ?? '');
 
         // Llamar al servicio de total consulta
@@ -130,28 +265,60 @@ class IndividualController extends AbstractController
     }
 
     #[Route('/api/rest/individual/total-pago', methods: ['POST'])]
-    public function totalPago(Request $request, TotalPagoService $service, JwtHelper $jwtHelper): JsonResponse
+    public function totalPago(Request $request, TotalPagoService $service, 
+        BearerTokenAuthenticatorService $bearerAuthenticator,
+        RequestSecurityHeadersValidator $headersValidator,
+        ReplayGuardService $replayGuardService
+    ): JsonResponse
     {
-        $subject = $jwtHelper->getSubjectFromRequest($request);
-
-        if ($subject === false) {
+        try{
+            $authenticatedClient = $bearerAuthenticator->authenticate($request);
+        } catch(\RuntimeException $e){
             return new JsonResponse([
                 'error' => [
                     'cod' => '401',
                     'mensaje' => 'TOKEN INVALIDO O AUSENTE'
                 ]
-            ]);
+            ], 401);
+        }
+
+        try {
+            $securityHeaders = $headersValidator->validateHeaders($request, 'application/json', 300);
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '400',
+                    'mensaje' => 'HEADERS DE SEGURIDAD INVALIDOS: ' . $e->getMessage()
+                ]
+            ], 400);
+        }
+
+        $requestId = $securityHeaders['request_id'];
+
+        try {
+            $replayGuardService->validateAndRegister(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                900
+            );
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '409',
+                    'mensaje' => 'REQUEST_ID REPETIDO'
+                ]
+            ], 409);
         }
 
         $data = json_decode($request->getContent(), true) ?? [];
+
+        $subject = (string) $authenticatedClient->bankClientId;
 
         $tipoPlaca      = (string)($data['tipo_placa'] ?? '');
         $placa          = (string)($data['placa'] ?? '');
         $total          = $data['total'] ?? 0;
         $noReferencia   = (string)($data['no_referencia'] ?? '');
         $noAutorizacion = (string)($data['no_autorizacion'] ?? '');
-        // $usuario        = (string)($data['usuario'] ?? '');
-        // $pass           = (string)($data['pass'] ?? '');
         $ip             = (string)($request->getClientIp() ?? '');
 
         $result = $service->execute(
