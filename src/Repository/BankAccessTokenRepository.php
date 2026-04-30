@@ -69,7 +69,8 @@ final class BankAccessTokenRepository
                 bc.BANK_CODE,
                 bc.BANK_NAME,
                 bc.ENVIRONMENT,
-                bc.CAJA
+                bc.CAJA,
+                bc.RATE_LIMIT_PER_MIN
             FROM BANK_ACCESS_TOKENS bat
             INNER JOIN BANK_CLIENTS bc
                 ON bc.ID = bat.BANK_CLIENT_ID

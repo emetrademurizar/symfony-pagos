@@ -16,6 +16,7 @@ use App\Application\Security\BearerTokenAuthenticatorService;
 use Psr\Log\LoggerInterface;
 use App\Application\Security\RequestSecurityHeadersValidator;
 use App\Application\Security\ReplayGuardService;
+use App\Application\Security\BankRateLimiterService;
 
 class IndividualController extends AbstractController
 {
@@ -27,7 +28,8 @@ class IndividualController extends AbstractController
     public function consulta(Request $request, ConsultaIndividualService $service,
         BearerTokenAuthenticatorService $bearerAuthenticator,        
         RequestSecurityHeadersValidator $headersValidator,
-        ReplayGuardService $replayGuardService): JsonResponse
+        ReplayGuardService $replayGuardService,        
+        BankRateLimiterService $rateLimiterService): JsonResponse
     {
         try{
             $authenticatedClient = $bearerAuthenticator->authenticate($request);
@@ -68,6 +70,20 @@ class IndividualController extends AbstractController
             ], 409);
         }
 
+        try {
+            $rateLimiterService->validate(
+                $authenticatedClient->bankClientId,
+                $authenticatedClient->rateLimitPerMin
+            );
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '429',
+                    'mensaje' => 'LIMITE DE CONSUMO EXCEDIDO'
+                ]
+            ], 429);
+        }
+
         $data = json_decode($request->getContent(), true) ?? [];
 
         $subject = (string) $authenticatedClient->bankClientId;
@@ -87,7 +103,8 @@ class IndividualController extends AbstractController
     public function pago(Request $request, PagoIndividualService $service,
         BearerTokenAuthenticatorService $bearerAuthenticator,
         RequestSecurityHeadersValidator $headersValidator,
-        ReplayGuardService $replayGuardService
+        ReplayGuardService $replayGuardService,
+        BankRateLimiterService $rateLimiterService
     ): JsonResponse
     {
         try{
@@ -129,6 +146,20 @@ class IndividualController extends AbstractController
             ], 409);
         }
 
+        try {
+            $rateLimiterService->validate(
+                $authenticatedClient->bankClientId,
+                $authenticatedClient->rateLimitPerMin
+            );
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '429',
+                    'mensaje' => 'LIMITE DE CONSUMO EXCEDIDO'
+                ]
+            ], 429);
+        }
+
         $data = json_decode($request->getContent(), true) ?? [];
 
         $subject = (string) $authenticatedClient->bankClientId;
@@ -144,7 +175,8 @@ class IndividualController extends AbstractController
     public function reversion(Request $request, ReversionIndividualService $service, 
         BearerTokenAuthenticatorService $bearerAuthenticator,
         RequestSecurityHeadersValidator $headersValidator,
-        ReplayGuardService $replayGuardService
+        ReplayGuardService $replayGuardService,
+        BankRateLimiterService $rateLimiterService
     ): JsonResponse
     {   
         try{
@@ -186,6 +218,20 @@ class IndividualController extends AbstractController
             ], 409);
         }
 
+        try {
+            $rateLimiterService->validate(
+                $authenticatedClient->bankClientId,
+                $authenticatedClient->rateLimitPerMin
+            );
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '429',
+                    'mensaje' => 'LIMITE DE CONSUMO EXCEDIDO'
+                ]
+            ], 429);
+        }
+
         $data = json_decode($request->getContent(), true) ?? [];
 
         $subject = (string) $authenticatedClient->bankClientId;
@@ -205,7 +251,8 @@ class IndividualController extends AbstractController
     public function totalConsulta(Request $request, TotalConsultaService $service, 
         BearerTokenAuthenticatorService $bearerAuthenticator,
         RequestSecurityHeadersValidator $headersValidator,
-        ReplayGuardService $replayGuardService
+        ReplayGuardService $replayGuardService,
+        BankRateLimiterService $rateLimiterService
     ): JsonResponse
     {
 
@@ -246,6 +293,20 @@ class IndividualController extends AbstractController
                     'mensaje' => 'REQUEST_ID REPETIDO'
                 ]
             ], 409);
+        }
+
+        try {
+            $rateLimiterService->validate(
+                $authenticatedClient->bankClientId,
+                $authenticatedClient->rateLimitPerMin
+            );
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '429',
+                    'mensaje' => 'LIMITE DE CONSUMO EXCEDIDO'
+                ]
+            ], 429);
         }
 
         $data = json_decode($request->getContent(), true) ?? [];
@@ -268,7 +329,8 @@ class IndividualController extends AbstractController
     public function totalPago(Request $request, TotalPagoService $service, 
         BearerTokenAuthenticatorService $bearerAuthenticator,
         RequestSecurityHeadersValidator $headersValidator,
-        ReplayGuardService $replayGuardService
+        ReplayGuardService $replayGuardService,
+        BankRateLimiterService $rateLimiterService
     ): JsonResponse
     {
         try{
@@ -308,6 +370,20 @@ class IndividualController extends AbstractController
                     'mensaje' => 'REQUEST_ID REPETIDO'
                 ]
             ], 409);
+        }
+
+        try {
+            $rateLimiterService->validate(
+                $authenticatedClient->bankClientId,
+                $authenticatedClient->rateLimitPerMin
+            );
+        } catch (\RuntimeException $e) {
+            return new JsonResponse([
+                'error' => [
+                    'cod' => '429',
+                    'mensaje' => 'LIMITE DE CONSUMO EXCEDIDO'
+                ]
+            ], 429);
         }
 
         $data = json_decode($request->getContent(), true) ?? [];

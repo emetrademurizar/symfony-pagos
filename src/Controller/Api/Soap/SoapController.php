@@ -11,7 +11,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use App\Security\JwtClientUser;
 use App\Utils\Validator;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use App\Utils\JwtHelper;
@@ -19,6 +18,7 @@ use App\Application\Security\BearerTokenAuthenticatorService;
 use Psr\Log\LoggerInterface;
 use App\Application\Security\RequestSecurityHeadersValidator;
 use App\Application\Security\ReplayGuardService;
+use App\Application\Security\BankRateLimiterService;
 
 class SoapController extends AbstractController
 {
@@ -34,12 +34,10 @@ class SoapController extends AbstractController
         ReversionIndividualService $ReversionService,
         TotalConsultaService $TotalConsultaService,
         TotalPagoService $TotalPagoService,
-        Validator $validator,
-        JWTTokenManagerInterface $jwtManager,
-        JwtHelper $jwtHelper,
         BearerTokenAuthenticatorService $bearerAuthenticator,        
         RequestSecurityHeadersValidator $headersValidator,
         ReplayGuardService $replayGuardService,
+        BankRateLimiterService $rateLimiterService
     ): Response{
         $raw = $request->getContent() ?? '';
         $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw); 
@@ -121,6 +119,18 @@ class SoapController extends AbstractController
             return $this->soapWrap(
                 '<ERROR><COD>409</COD><MENSAJE>REQUEST_ID REPETIDO</MENSAJE></ERROR>',
                 409
+            );
+        }
+
+        try {
+            $rateLimiterService->validate(
+                $authenticatedClient->bankClientId,
+                $authenticatedClient->rateLimitPerMin
+            );
+        } catch (\RuntimeException $e) {
+            return $this->soapWrap(
+                '<ERROR><COD>429</COD><MENSAJE>LIMITE DE CONSUMO EXCEDIDO</MENSAJE></ERROR>',
+                429
             );
         }
 

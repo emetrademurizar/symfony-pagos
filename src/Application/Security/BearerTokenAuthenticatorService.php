@@ -64,6 +64,7 @@ final class BearerTokenAuthenticatorService
             bankName: (string) $row['BANK_NAME'],
             environment: (string) $row['ENVIRONMENT'],
             caja: (string) $row['CAJA'],
+            rateLimitPerMin: (int) $row['RATE_LIMIT_PER_MIN']
         );
     }
 }

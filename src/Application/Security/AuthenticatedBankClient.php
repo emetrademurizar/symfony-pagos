@@ -11,7 +11,8 @@ final class AuthenticatedBankClient
         public readonly string $bankCode,
         public readonly string $bankName,
         public readonly string $environment,
-        public readonly string $caja
+        public readonly string $caja,
+        public readonly int $rateLimitPerMin
     ) {
     }
 }
