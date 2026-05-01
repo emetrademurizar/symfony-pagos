@@ -17,6 +17,7 @@ use Psr\Log\LoggerInterface;
 use App\Application\Security\RequestSecurityHeadersValidator;
 use App\Application\Security\ReplayGuardService;
 use App\Application\Security\BankRateLimiterService;
+use App\Application\Security\BankRequestLoggerService;
 
 class IndividualController extends AbstractController
 {
@@ -29,11 +30,25 @@ class IndividualController extends AbstractController
         BearerTokenAuthenticatorService $bearerAuthenticator,        
         RequestSecurityHeadersValidator $headersValidator,
         ReplayGuardService $replayGuardService,        
-        BankRateLimiterService $rateLimiterService): JsonResponse
+        BankRateLimiterService $rateLimiterService,
+        BankRequestLoggerService $bankRequestLogger): JsonResponse
     {
         try{
             $authenticatedClient = $bearerAuthenticator->authenticate($request);
         } catch(\RuntimeException $e){
+            $bankRequestLogger->logRejectedRequest(
+                null,
+                $request->headers->get('X-Request-Id'),
+                $opName ?? null,
+                $request->headers->get('X-Timestamp'),
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                401,
+                'FAILED',
+                null,
+                null,
+                'TOKEN INVALIDO O AUSENTE: ' . $e->getMessage()
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '401',
@@ -45,6 +60,19 @@ class IndividualController extends AbstractController
         try {
             $securityHeaders = $headersValidator->validateHeaders($request, 'application/json', 300);
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $request->headers->get('X-Request-Id'),
+                $opName ?? null,
+                $request->headers->get('X-Timestamp'),
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                400,
+                'OK',
+                null,
+                null,
+                'HEADERS INVALIDOS: ' . $e->getMessage()
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '400',
@@ -54,6 +82,7 @@ class IndividualController extends AbstractController
         }
 
         $requestId = $securityHeaders['request_id'];
+        $requestTimestamp = $securityHeaders['timestamp'];
 
         try {
             $replayGuardService->validateAndRegister(
@@ -62,6 +91,19 @@ class IndividualController extends AbstractController
                 900
             );
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                $opName ?? null,
+                $requestTimestamp,
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                409,
+                'OK',
+                'FAILED',
+                null,
+                'REQUEST_ID REPETIDO'
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '409',
@@ -76,6 +118,19 @@ class IndividualController extends AbstractController
                 $authenticatedClient->rateLimitPerMin
             );
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                $opName ?? null,
+                $requestTimestamp,
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                429,
+                'OK',
+                'OK',
+                'FAILED',
+                'LIMITE DE CONSUMO EXCEDIDO'
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '429',
@@ -83,6 +138,15 @@ class IndividualController extends AbstractController
                 ]
             ], 429);
         }
+
+        $logId = $bankRequestLogger->logRequest(
+            $authenticatedClient->bankClientId,
+            $requestId,
+            'consulta',
+            $securityHeaders['timestamp'],
+            (string) ($request->getClientIp() ?? ''),
+            $request->getContent()
+        );
 
         $data = json_decode($request->getContent(), true) ?? [];
 
@@ -96,7 +160,20 @@ class IndividualController extends AbstractController
             (string)($request->getClientIp() ?? '')
         );
 
-        return $this->json($result);
+        $httpStatus = isset($result['error']) ? 400 : 200;
+
+        $functionalCode = $result['error']['cod'] ?? '000';
+
+        $response = new JsonResponse($result, $httpStatus);
+
+        $bankRequestLogger->closeRequest(
+            $logId,
+            $httpStatus,
+            $functionalCode,
+            json_encode($result)
+        );
+
+        return $response;
     }
 
     #[Route('/api/rest/individual/pago', methods: ['POST'])]
@@ -104,12 +181,26 @@ class IndividualController extends AbstractController
         BearerTokenAuthenticatorService $bearerAuthenticator,
         RequestSecurityHeadersValidator $headersValidator,
         ReplayGuardService $replayGuardService,
-        BankRateLimiterService $rateLimiterService
+        BankRateLimiterService $rateLimiterService,
+        BankRequestLoggerService $bankRequestLogger
     ): JsonResponse
     {
         try{
             $authenticatedClient = $bearerAuthenticator->authenticate($request);
         } catch(\RuntimeException $e){
+            $bankRequestLogger->logRejectedRequest(
+                null,
+                $request->headers->get('X-Request-Id'),
+                $opName ?? null,
+                $request->headers->get('X-Timestamp'),
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                401,
+                'FAILED',
+                null,
+                null,
+                'TOKEN INVALIDO O AUSENTE: ' . $e->getMessage()
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '401',
@@ -121,6 +212,19 @@ class IndividualController extends AbstractController
         try {
             $securityHeaders = $headersValidator->validateHeaders($request, 'application/json', 300);
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $request->headers->get('X-Request-Id'),
+                $opName ?? null,
+                $request->headers->get('X-Timestamp'),
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                400,
+                'OK',
+                null,
+                null,
+                'HEADERS INVALIDOS: ' . $e->getMessage()
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '400',
@@ -130,6 +234,7 @@ class IndividualController extends AbstractController
         }
 
         $requestId = $securityHeaders['request_id'];
+        $requestTimestamp = $securityHeaders['timestamp'];
 
         try {
             $replayGuardService->validateAndRegister(
@@ -138,6 +243,19 @@ class IndividualController extends AbstractController
                 900
             );
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                $opName ?? null,
+                $requestTimestamp,
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                409,
+                'OK',
+                'FAILED',
+                null,
+                'REQUEST_ID REPETIDO'
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '409',
@@ -152,6 +270,19 @@ class IndividualController extends AbstractController
                 $authenticatedClient->rateLimitPerMin
             );
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                $opName ?? null,
+                $requestTimestamp,
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                429,
+                'OK',
+                'OK',
+                'FAILED',
+                'LIMITE DE CONSUMO EXCEDIDO'
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '429',
@@ -159,6 +290,15 @@ class IndividualController extends AbstractController
                 ]
             ], 429);
         }
+
+        $logId = $bankRequestLogger->logRequest(
+            $authenticatedClient->bankClientId,
+            $requestId,
+            'pago',
+            $securityHeaders['timestamp'],
+            (string) ($request->getClientIp() ?? ''),
+            $request->getContent()
+        );
 
         $data = json_decode($request->getContent(), true) ?? [];
 
@@ -168,7 +308,20 @@ class IndividualController extends AbstractController
         $ip         = (string)($request->getClientIp() ?? '');
         $result = $service->execute($remisiones, $subject, $ip);
 
-        return new JsonResponse($result, isset($result['error']) ? 400 : 200);
+        $httpStatus = isset($result['error']) ? 400 : 200;
+
+        $functionalCode = $result['error']['cod'] ?? '000';
+
+        $response = new JsonResponse($result, $httpStatus);
+
+        $bankRequestLogger->closeRequest(
+            $logId,
+            $httpStatus,
+            $functionalCode,
+            json_encode($result)
+        );
+
+        return $response;
     }
 
     #[Route('/api/rest/individual/reversion', methods: ['POST'])]
@@ -176,12 +329,26 @@ class IndividualController extends AbstractController
         BearerTokenAuthenticatorService $bearerAuthenticator,
         RequestSecurityHeadersValidator $headersValidator,
         ReplayGuardService $replayGuardService,
-        BankRateLimiterService $rateLimiterService
+        BankRateLimiterService $rateLimiterService,
+        BankRequestLoggerService $bankRequestLogger
     ): JsonResponse
     {   
         try{
             $authenticatedClient = $bearerAuthenticator->authenticate($request);
         } catch(\RuntimeException $e){
+            $bankRequestLogger->logRejectedRequest(
+                null,
+                $request->headers->get('X-Request-Id'),
+                $opName ?? null,
+                $request->headers->get('X-Timestamp'),
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                401,
+                'FAILED',
+                null,
+                null,
+                'TOKEN INVALIDO O AUSENTE: ' . $e->getMessage()
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '401',
@@ -193,6 +360,19 @@ class IndividualController extends AbstractController
         try {
             $securityHeaders = $headersValidator->validateHeaders($request, 'application/json', 300);
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $request->headers->get('X-Request-Id'),
+                $opName ?? null,
+                $request->headers->get('X-Timestamp'),
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                400,
+                'OK',
+                null,
+                null,
+                'HEADERS INVALIDOS: ' . $e->getMessage()
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '400',
@@ -202,6 +382,7 @@ class IndividualController extends AbstractController
         }
 
         $requestId = $securityHeaders['request_id'];
+        $requestTimestamp = $securityHeaders['timestamp'];
 
         try {
             $replayGuardService->validateAndRegister(
@@ -210,6 +391,19 @@ class IndividualController extends AbstractController
                 900
             );
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                $opName ?? null,
+                $requestTimestamp,
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                409,
+                'OK',
+                'FAILED',
+                null,
+                'REQUEST_ID REPETIDO'
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '409',
@@ -224,6 +418,19 @@ class IndividualController extends AbstractController
                 $authenticatedClient->rateLimitPerMin
             );
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                $opName ?? null,
+                $requestTimestamp,
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                429,
+                'OK',
+                'OK',
+                'FAILED',
+                'LIMITE DE CONSUMO EXCEDIDO'
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '429',
@@ -231,6 +438,15 @@ class IndividualController extends AbstractController
                 ]
             ], 429);
         }
+
+        $logId = $bankRequestLogger->logRequest(
+            $authenticatedClient->bankClientId,
+            $requestId,
+            'reversion',
+            $securityHeaders['timestamp'],
+            (string) ($request->getClientIp() ?? ''),
+            $request->getContent()
+        );
 
         $data = json_decode($request->getContent(), true) ?? [];
 
@@ -244,7 +460,20 @@ class IndividualController extends AbstractController
         $result = $service->execute($documento, $subject, $message, $ip);
 
         // Enviar el resultado, dependiendo de si hubo error o no
-        return new JsonResponse($result, isset($result['error']) ? 400 : 200);
+        $httpStatus = isset($result['error']) ? 400 : 200;
+
+        $functionalCode = $result['error']['cod'] ?? '000';
+
+        $response = new JsonResponse($result, $httpStatus);
+
+        $bankRequestLogger->closeRequest(
+            $logId,
+            $httpStatus,
+            $functionalCode,
+            json_encode($result)
+        );
+
+        return $response;
     }
 
     #[Route('/api/rest/individual/total', methods: ['POST'])]
@@ -252,13 +481,27 @@ class IndividualController extends AbstractController
         BearerTokenAuthenticatorService $bearerAuthenticator,
         RequestSecurityHeadersValidator $headersValidator,
         ReplayGuardService $replayGuardService,
-        BankRateLimiterService $rateLimiterService
+        BankRateLimiterService $rateLimiterService,
+        BankRequestLoggerService $bankRequestLogger
     ): JsonResponse
     {
 
         try{
             $authenticatedClient = $bearerAuthenticator->authenticate($request);
         } catch(\RuntimeException $e){
+            $bankRequestLogger->logRejectedRequest(
+                null,
+                $request->headers->get('X-Request-Id'),
+                $opName ?? null,
+                $request->headers->get('X-Timestamp'),
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                401,
+                'FAILED',
+                null,
+                null,
+                'TOKEN INVALIDO O AUSENTE: ' . $e->getMessage()
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '401',
@@ -270,6 +513,19 @@ class IndividualController extends AbstractController
         try {
             $securityHeaders = $headersValidator->validateHeaders($request, 'application/json', 300);
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $request->headers->get('X-Request-Id'),
+                $opName ?? null,
+                $request->headers->get('X-Timestamp'),
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                400,
+                'OK',
+                null,
+                null,
+                'HEADERS INVALIDOS: ' . $e->getMessage()
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '400',
@@ -279,6 +535,7 @@ class IndividualController extends AbstractController
         }
 
         $requestId = $securityHeaders['request_id'];
+        $requestTimestamp = $securityHeaders['timestamp'];
 
         try {
             $replayGuardService->validateAndRegister(
@@ -287,6 +544,19 @@ class IndividualController extends AbstractController
                 900
             );
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                $opName ?? null,
+                $requestTimestamp,
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                409,
+                'OK',
+                'FAILED',
+                null,
+                'REQUEST_ID REPETIDO'
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '409',
@@ -301,6 +571,19 @@ class IndividualController extends AbstractController
                 $authenticatedClient->rateLimitPerMin
             );
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                $opName ?? null,
+                $requestTimestamp,
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                429,
+                'OK',
+                'OK',
+                'FAILED',
+                'LIMITE DE CONSUMO EXCEDIDO'
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '429',
@@ -308,6 +591,15 @@ class IndividualController extends AbstractController
                 ]
             ], 429);
         }
+
+        $logId = $bankRequestLogger->logRequest(
+            $authenticatedClient->bankClientId,
+            $requestId,
+            'consulta total',
+            $securityHeaders['timestamp'],
+            (string) ($request->getClientIp() ?? ''),
+            $request->getContent()
+        );
 
         $data = json_decode($request->getContent(), true) ?? [];
 
@@ -322,7 +614,20 @@ class IndividualController extends AbstractController
         $result = $service->execute($tipoPlaca, $placa, $subject, $ip);
 
         // Devolver la respuesta
-        return new JsonResponse($result, isset($result['error']) ? 400 : 200);
+        $httpStatus = isset($result['error']) ? 400 : 200;
+
+        $functionalCode = $result['error']['cod'] ?? '000';
+
+        $response = new JsonResponse($result, $httpStatus);
+
+        $bankRequestLogger->closeRequest(
+            $logId,
+            $httpStatus,
+            $functionalCode,
+            json_encode($result)
+        );
+
+        return $response;
     }
 
     #[Route('/api/rest/individual/total-pago', methods: ['POST'])]
@@ -330,12 +635,26 @@ class IndividualController extends AbstractController
         BearerTokenAuthenticatorService $bearerAuthenticator,
         RequestSecurityHeadersValidator $headersValidator,
         ReplayGuardService $replayGuardService,
-        BankRateLimiterService $rateLimiterService
+        BankRateLimiterService $rateLimiterService,
+        BankRequestLoggerService $bankRequestLogger
     ): JsonResponse
     {
         try{
             $authenticatedClient = $bearerAuthenticator->authenticate($request);
         } catch(\RuntimeException $e){
+            $bankRequestLogger->logRejectedRequest(
+                null,
+                $request->headers->get('X-Request-Id'),
+                $opName ?? null,
+                $request->headers->get('X-Timestamp'),
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                401,
+                'FAILED',
+                null,
+                null,
+                'TOKEN INVALIDO O AUSENTE: ' . $e->getMessage()
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '401',
@@ -347,6 +666,19 @@ class IndividualController extends AbstractController
         try {
             $securityHeaders = $headersValidator->validateHeaders($request, 'application/json', 300);
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $request->headers->get('X-Request-Id'),
+                $opName ?? null,
+                $request->headers->get('X-Timestamp'),
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                400,
+                'OK',
+                null,
+                null,
+                'HEADERS INVALIDOS: ' . $e->getMessage()
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '400',
@@ -356,6 +688,7 @@ class IndividualController extends AbstractController
         }
 
         $requestId = $securityHeaders['request_id'];
+        $requestTimestamp = $securityHeaders['timestamp'];
 
         try {
             $replayGuardService->validateAndRegister(
@@ -364,6 +697,19 @@ class IndividualController extends AbstractController
                 900
             );
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                $opName ?? null,
+                $requestTimestamp,
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                409,
+                'OK',
+                'FAILED',
+                null,
+                'REQUEST_ID REPETIDO'
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '409',
@@ -378,6 +724,19 @@ class IndividualController extends AbstractController
                 $authenticatedClient->rateLimitPerMin
             );
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                $opName ?? null,
+                $requestTimestamp,
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                429,
+                'OK',
+                'OK',
+                'FAILED',
+                'LIMITE DE CONSUMO EXCEDIDO'
+            );
             return new JsonResponse([
                 'error' => [
                     'cod' => '429',
@@ -385,6 +744,15 @@ class IndividualController extends AbstractController
                 ]
             ], 429);
         }
+
+        $logId = $bankRequestLogger->logRequest(
+            $authenticatedClient->bankClientId,
+            $requestId,
+            'pago total',
+            $securityHeaders['timestamp'],
+            (string) ($request->getClientIp() ?? ''),
+            $request->getContent()
+        );
 
         $data = json_decode($request->getContent(), true) ?? [];
 
@@ -408,7 +776,20 @@ class IndividualController extends AbstractController
             $ip
         );
 
-        return new JsonResponse($result, isset($result['error']) ? 400 : 200);
+        $httpStatus = isset($result['error']) ? 400 : 200;
+
+        $functionalCode = $result['error']['cod'] ?? '000';
+
+        $response = new JsonResponse($result, $httpStatus);
+
+        $bankRequestLogger->closeRequest(
+            $logId,
+            $httpStatus,
+            $functionalCode,
+            json_encode($result)
+        );
+
+        return $response;
     }
 
 }

@@ -19,6 +19,7 @@ use Psr\Log\LoggerInterface;
 use App\Application\Security\RequestSecurityHeadersValidator;
 use App\Application\Security\ReplayGuardService;
 use App\Application\Security\BankRateLimiterService;
+use App\Application\Security\BankRequestLoggerService;
 
 class SoapController extends AbstractController
 {
@@ -37,7 +38,8 @@ class SoapController extends AbstractController
         BearerTokenAuthenticatorService $bearerAuthenticator,        
         RequestSecurityHeadersValidator $headersValidator,
         ReplayGuardService $replayGuardService,
-        BankRateLimiterService $rateLimiterService
+        BankRateLimiterService $rateLimiterService,
+        BankRequestLoggerService $bankRequestLogger
     ): Response{
         $raw = $request->getContent() ?? '';
         $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw); 
@@ -83,6 +85,19 @@ class SoapController extends AbstractController
         try {
             $authenticatedClient = $bearerAuthenticator->authenticate($request);
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                null,
+                $request->headers->get('X-Request-Id'),
+                $opName ?? null,
+                $request->headers->get('X-Timestamp'),
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                401,
+                'FAILED',
+                null,
+                null,
+                'TOKEN INVALIDO O AUSENTE: ' . $e->getMessage()
+            );
             return $this->soapWrap(
                 '<ERROR><COD>401</COD><MENSAJE>TOKEN INVALIDO O AUSENTE</MENSAJE></ERROR>',
                 401
@@ -97,6 +112,19 @@ class SoapController extends AbstractController
                 300
             );
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $request->headers->get('X-Request-Id'),
+                $opName ?? null,
+                $request->headers->get('X-Timestamp'),
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                400,
+                'OK',
+                null,
+                null,
+                'HEADERS INVALIDOS: ' . $e->getMessage()
+            );
             return $this->soapWrap(
                 '<ERROR><COD>400</COD><MENSAJE>HEADERS DE SEGURIDAD INVALIDOS: '
                 . htmlspecialchars($e->getMessage())
@@ -108,7 +136,7 @@ class SoapController extends AbstractController
         
         $requestId = $securityHeaders['request_id'];
         $requestTimestamp = $securityHeaders['timestamp'];
-
+        //anti replay
         try {
             $replayGuardService->validateAndRegister(
                 $authenticatedClient->bankClientId,
@@ -116,18 +144,44 @@ class SoapController extends AbstractController
                 900
             );
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                $opName ?? null,
+                $requestTimestamp,
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                409,
+                'OK',
+                'FAILED',
+                null,
+                'REQUEST_ID REPETIDO'
+            );
             return $this->soapWrap(
                 '<ERROR><COD>409</COD><MENSAJE>REQUEST_ID REPETIDO</MENSAJE></ERROR>',
                 409
             );
         }
-
+        // Rate limit
         try {
             $rateLimiterService->validate(
                 $authenticatedClient->bankClientId,
                 $authenticatedClient->rateLimitPerMin
             );
         } catch (\RuntimeException $e) {
+            $bankRequestLogger->logRejectedRequest(
+                $authenticatedClient->bankClientId,
+                $requestId,
+                $opName ?? null,
+                $requestTimestamp,
+                (string) ($request->getClientIp() ?? ''),
+                $request->getContent(),
+                429,
+                'OK',
+                'OK',
+                'FAILED',
+                'LIMITE DE CONSUMO EXCEDIDO'
+            );
             return $this->soapWrap(
                 '<ERROR><COD>429</COD><MENSAJE>LIMITE DE CONSUMO EXCEDIDO</MENSAJE></ERROR>',
                 429
@@ -135,6 +189,15 @@ class SoapController extends AbstractController
         }
 
         $subject = (string) $authenticatedClient->bankClientId;
+
+        $logId = $bankRequestLogger->logRequest(
+            $authenticatedClient->bankClientId,
+            $requestId,
+            $opName,
+            $requestTimestamp,
+            $ip,
+            $request->getContent()
+        );
 
         $this->logger->info('Solicitud SOAP recibida', [
             'operacion' => $opName,
@@ -153,12 +216,17 @@ class SoapController extends AbstractController
 
             $result = $consultaService->execute($tipoPlaca, $placa, $subject, $ip);
 
+            $functionalCode = null;
+
             if (isset($result['error'])) {
+                $functionalCode = (string) $result['error']['cod'] ?? '';
+
                 $out = '<ERROR>'
-                    . '<COD>' . htmlspecialchars((string)$result['error']['cod']) . '</COD>'
+                    . '<COD>' . htmlspecialchars($functionalCode) . '</COD>'
                     . '<MENSAJE>' . htmlspecialchars((string)$result['error']['mensaje']) . '</MENSAJE>'
                     . '</ERROR>';
             } else {
+                $functionalCode = '000';
                 $out = '<REMISIONES>';
                 foreach (($result['remisiones'] ?? []) as $r) {
                     $out .= '<REMISION>'
@@ -172,7 +240,16 @@ class SoapController extends AbstractController
                 $out .= '</REMISIONES>';
             }
 
-            return $this->soapWrap($out, 200);
+            $response = $this->soapWrap($out, 200);
+
+            $bankRequestLogger->closeRequest(
+                $logId,
+                200,
+                $functionalCode,
+                (string) $response->getContent()
+            );
+
+            return $response;
         } 
 
         // =========================
@@ -220,14 +297,19 @@ class SoapController extends AbstractController
 
             $result = $pagoService->execute($remisiones, $subject, $ip);
 
+            $functionalCode = null;
+
             if (isset($result['error'])) {
+                $functionalCode = (string) $result['error']['cod'] ?? '';
                 $out = '<ERROR>'
-                    . '<COD>' . htmlspecialchars((string)$result['error']['cod']) . '</COD>'
+                    . '<COD>' . htmlspecialchars($functionalCode) . '</COD>'
                     . '<MENSAJE>' . htmlspecialchars((string)$result['error']['mensaje']) . '</MENSAJE>'
                     . '</ERROR>';
 
                 return $this->soapWrap($out, 200);
             }
+
+            $functionalCode = '000';
 
             $doc     = (string)($result['remision']['doc'] ?? '');
             $cod     = (string)($result['remision']['cod'] ?? '');
@@ -273,7 +355,16 @@ class SoapController extends AbstractController
 
             $out .= '</REMISION>';
 
-            return $this->soapWrap($out, 200);
+            $response = $this->soapWrap($out, 200);
+
+            $bankRequestLogger->closeRequest(
+                $logId,
+                200,
+                $functionalCode,
+                (string) $response->getContent()
+            );
+
+            return $response;
         }
 
         // =========================
@@ -286,14 +377,18 @@ class SoapController extends AbstractController
 
             $result = $ReversionService->execute($documento, $subject, $message, $ip);
 
+            $functionalCode = null;
+
             if (isset($result['error'])) {
+                $functionalCode = (string) $result['error']['cod'] ?? '';
                 $out = '<ERROR>'
-                    . '<COD>' . htmlspecialchars((string)$result['error']['cod']) . '</COD>'
+                    . '<COD>' . htmlspecialchars($functionalCode) . '</COD>'
                     . '<MENSAJE>' . htmlspecialchars((string)$result['error']['mensaje']) . '</MENSAJE>'
                     . '</ERROR>';
 
                 return $this->soapWrap($out, 200);
             }
+            $functionalCode = '000';
 
             $doc = (string)($result['reversion']['doc'] ?? '');
             $cod = (string)($result['reversion']['cod'] ?? '');
@@ -305,7 +400,16 @@ class SoapController extends AbstractController
                 . '<MENSAJE>' . htmlspecialchars($mensaje) . '</MENSAJE>'
                 . '</REMISION>';
 
-            return $this->soapWrap($out, 200);
+            $response = $this->soapWrap($out, 200);
+
+            $bankRequestLogger->closeRequest(
+                $logId,
+                200,
+                $functionalCode,
+                (string) $response->getContent()
+            );
+            
+            return $response;
         }
 
         // =========================
@@ -316,15 +420,17 @@ class SoapController extends AbstractController
             $placa     = $this->x($xpath, $opNode, 'Placa');
 
             $result = $TotalConsultaService->execute($tipoPlaca, $placa, $subject, $ip);
-
+            $functionalCode = null;
             if (isset($result['error'])) {
+                $functionalCode = (string) $result['error']['cod'] ?? '';
                 $out = '<ERROR>'
-                    . '<COD>' . htmlspecialchars((string) $result['error']['cod']) . '</COD>'
+                    . '<COD>' . htmlspecialchars($functionalCode) . '</COD>'
                     . '<MENSAJE>' . htmlspecialchars((string) $result['error']['mensaje']) . '</MENSAJE>'
                     . '</ERROR>';
 
                 return $this->soapWrap($out, 200);
             }
+            $functionalCode = '000';
 
             $fecha = (string) ($result['total']['fecha'] ?? '');
             $total = (string) ($result['total']['total'] ?? '');
@@ -334,7 +440,16 @@ class SoapController extends AbstractController
                 . '<TOTAL>' . htmlspecialchars($total) . '</TOTAL>'
                 . '</RESULTADO>';
 
-            return $this->soapWrap($out, 200);
+            $response = $this->soapWrap($out, 200);
+
+            $bankRequestLogger->closeRequest(
+                $logId,
+                200,
+                $functionalCode,
+                (string) $response->getContent()
+            );
+
+            return $response;
         }
 
         // =========================
@@ -357,15 +472,17 @@ class SoapController extends AbstractController
                 // $pass,
                 $ip
             );
-
+            $functionalCode = null;
             if (isset($result['error'])) {
+                $functionalCode = (string) $result['error']['cod'] ?? '';
                 $out = '<ERROR>'
-                    . '<COD>' . htmlspecialchars((string)$result['error']['cod']) . '</COD>'
+                    . '<COD>' . htmlspecialchars($functionalCode) . '</COD>'
                     . '<MENSAJE>' . htmlspecialchars((string)$result['error']['mensaje']) . '</MENSAJE>'
                     . '</ERROR>';
 
                 return $this->soapWrap($out, 200);
             }
+            $functionalCode = '000';
 
             $doc     = (string)($result['total_pago']['doc'] ?? '');
             $cod     = (string)($result['total_pago']['cod'] ?? '');
@@ -411,7 +528,17 @@ class SoapController extends AbstractController
 
             $out .= '</REMISION>';
 
-            return $this->soapWrap($out, 200);
+            $response = $this->soapWrap($out, 200);
+
+            $bankRequestLogger->closeRequest(
+                $logId,
+                200,
+                $functionalCode,
+                (string) $response->getContent()
+            );
+
+            return $response;
+                
         }
 
         // Operación no soportada
