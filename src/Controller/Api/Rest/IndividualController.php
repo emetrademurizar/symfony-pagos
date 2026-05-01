@@ -39,7 +39,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 null,
                 $request->headers->get('X-Request-Id'),
-                $opName ?? null,
+                'consulta',
                 $request->headers->get('X-Timestamp'),
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -63,7 +63,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $request->headers->get('X-Request-Id'),
-                $opName ?? null,
+                'consulta',
                 $request->headers->get('X-Timestamp'),
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -94,7 +94,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $requestId,
-                $opName ?? null,
+                'consulta',
                 $requestTimestamp,
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -121,7 +121,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $requestId,
-                $opName ?? null,
+                'consulta',
                 $requestTimestamp,
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -191,7 +191,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 null,
                 $request->headers->get('X-Request-Id'),
-                $opName ?? null,
+                'pago',
                 $request->headers->get('X-Timestamp'),
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -215,7 +215,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $request->headers->get('X-Request-Id'),
-                $opName ?? null,
+                'pago',
                 $request->headers->get('X-Timestamp'),
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -246,7 +246,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $requestId,
-                $opName ?? null,
+                'pago',
                 $requestTimestamp,
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -273,7 +273,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $requestId,
-                $opName ?? null,
+                'pago',
                 $requestTimestamp,
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -339,7 +339,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 null,
                 $request->headers->get('X-Request-Id'),
-                $opName ?? null,
+                'reversion',
                 $request->headers->get('X-Timestamp'),
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -363,7 +363,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $request->headers->get('X-Request-Id'),
-                $opName ?? null,
+                'reversion',
                 $request->headers->get('X-Timestamp'),
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -394,7 +394,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $requestId,
-                $opName ?? null,
+                'reversion',
                 $requestTimestamp,
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -421,7 +421,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $requestId,
-                $opName ?? null,
+                'reversion',
                 $requestTimestamp,
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -492,7 +492,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 null,
                 $request->headers->get('X-Request-Id'),
-                $opName ?? null,
+                'consulta total',
                 $request->headers->get('X-Timestamp'),
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -516,7 +516,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $request->headers->get('X-Request-Id'),
-                $opName ?? null,
+                'consulta total',
                 $request->headers->get('X-Timestamp'),
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -547,7 +547,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $requestId,
-                $opName ?? null,
+                'consulta total',
                 $requestTimestamp,
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -574,7 +574,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $requestId,
-                $opName ?? null,
+                'consulta total',
                 $requestTimestamp,
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -645,7 +645,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 null,
                 $request->headers->get('X-Request-Id'),
-                $opName ?? null,
+                'pago total',
                 $request->headers->get('X-Timestamp'),
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -669,7 +669,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $request->headers->get('X-Request-Id'),
-                $opName ?? null,
+                'pago total',
                 $request->headers->get('X-Timestamp'),
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -700,7 +700,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $requestId,
-                $opName ?? null,
+                'pago total',
                 $requestTimestamp,
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
@@ -727,7 +727,7 @@ class IndividualController extends AbstractController
             $bankRequestLogger->logRejectedRequest(
                 $authenticatedClient->bankClientId,
                 $requestId,
-                $opName ?? null,
+                'pago total',
                 $requestTimestamp,
                 (string) ($request->getClientIp() ?? ''),
                 $request->getContent(),
