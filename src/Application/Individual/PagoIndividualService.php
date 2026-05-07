@@ -168,7 +168,8 @@ class PagoIndividualService
                         estatus: 'ERROR',
                         codRespuesta: '004',
                         tipoPlaca: $tipoPlaca,
-                        placa: $placa
+                        placa: $placa,
+                        comentarios: 'NO PROCESADA POR FALLO ANTERIOR'
                     );
 
                     $noProcesadas[] = [
@@ -196,7 +197,8 @@ class PagoIndividualService
                         estatus: 'ERROR',
                         codRespuesta: '004',
                         tipoPlaca: $tipoPlaca,
-                        placa: $placa
+                        placa: $placa,
+                        comentarios: 'DATOS DE REMISION INVALIDOS'
                     );
 
                     $noProcesadas[] = [
@@ -225,7 +227,8 @@ class PagoIndividualService
                         estatus: 'ERROR',
                         codRespuesta: '004',
                         tipoPlaca: $tipoPlaca,
-                        placa: $placa
+                        placa: $placa,
+                        comentarios: 'NO HAY REFERENCIA O AUTORIZACION'
                     );
 
                     $noProcesadas[] = [
@@ -255,7 +258,8 @@ class PagoIndividualService
                             estatus: 'ERROR',
                             codRespuesta: '002',
                             tipoPlaca: $tipoPlaca,
-                            placa: $placa
+                            placa: $placa,
+                            comentarios: 'DATOS DE TRANSACCON PROCESADOS CON ANTERIORIDAD',
                         );
 
                         $noProcesadas[] = [
@@ -283,7 +287,8 @@ class PagoIndividualService
                         estatus: 'ERROR',
                         codRespuesta: '004',
                         tipoPlaca: $tipoPlaca,
-                        placa: $placa
+                        placa: $placa,
+                        comentarios: 'ERROR AL PROCESAR TRANSACCION'
                     );
 
                     $noProcesadas[] = [
@@ -383,7 +388,8 @@ class PagoIndividualService
                         estatus: 'ERROR',
                         codRespuesta: '004',
                         tipoPlaca: $tipoPlaca,
-                        placa: $placa
+                        placa: $placa,
+                        comentarios: 'ERROR AL PROCESAR TRANSACCION: ' . $mensaje
                     );
 
                     $noProcesadas[] = [
@@ -419,7 +425,7 @@ class PagoIndividualService
                         'codigo' => '000',
                         'mensaje' => $mensajeRespuesta,
                     ];
-                } elseif (str_contains(strtoupper($documentoSalida), 'YA FUE PAGADA')) {
+                } elseif (str_contains(strtoupper($documentoSalida), 'SE ENCUENTRA PAGADA')) {
                     $codigoRespuesta = '003';
                     $estatus = 'ERROR';
                     $mensajeRespuesta = 'LA REMISION YA FUE PAGADA';
@@ -463,6 +469,26 @@ class PagoIndividualService
                     $detener = true;
                 }
 
+
+                // Preparar valores seguros para bitácora
+                $docBitacora = '';
+                $comentarioBitacora = $mensajeRespuesta;
+
+                $documentoJson = json_decode($documentoSalida, true);
+
+                if (json_last_error() === JSON_ERROR_NONE && is_array($documentoJson)) {
+                    $docBitacora = (string)($documentoJson['numeroRecibo'] ?? '');
+                    $comentarioBitacora = (string)($documentoJson['respuesta'] ?? $mensajeRespuesta);
+                } elseif (ctype_digit($documentoSalida)) {
+                    $docBitacora = $documentoSalida;
+                    $comentarioBitacora = $mensajeRespuesta;
+                } else {
+                    $docBitacora = '';
+                    $comentarioBitacora = $documentoSalida !== ''
+                        ? $documentoSalida
+                        : $mensajeRespuesta;
+                }
+
                 // Bitácora siempre
                 $this->bitacora->bitacora(
                     ip: $ip,
@@ -479,7 +505,8 @@ class PagoIndividualService
                     codRespuesta: $codigoRespuesta,
                     tipoPlaca: $tipoPlaca,
                     placa: $placa,
-                    doc: $documentoSalida
+                    doc: $docBitacora,
+                    comentarios: $comentarioBitacora
                 );
             }
 

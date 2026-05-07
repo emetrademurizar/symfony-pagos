@@ -232,11 +232,20 @@ class ReversionIndividualService
             );
             $this->commitBitacora();
 
+            $respuestaRaw = trim($respuesta);
+            $respuestaJson = json_decode($respuestaRaw, true);
+
+            $mensajeRespuesta = $respuestaRaw;
+
+            if (json_last_error() === JSON_ERROR_NONE && is_array($respuestaJson)) {
+                $mensajeRespuesta = (string)($respuestaJson['message'] ?? $respuestaRaw);
+            }
+
             return [
                 'reversion' => [
                     'doc' => $documento,
                     'cod' => '000',
-                    'mensaje' => trim($respuesta),
+                    'mensaje' => $mensajeRespuesta,
                 ],
             ];
         } catch (\Throwable $e) {

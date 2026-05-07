@@ -39,17 +39,17 @@
 
             <xsd:complexType name="RemisionPagoInputType">
                 <xsd:sequence>
-                    <xsd:element name="serie" type="xsd:string" minOccurs="0"/>
-                    <xsd:element name="remision" type="xsd:string" minOccurs="0"/>
-                    <xsd:element name="total" type="xsd:string" minOccurs="0"/>
-                    <xsd:element name="no_referencia" type="xsd:string" minOccurs="0"/>
-                    <xsd:element name="no_autorizacion" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="serie" type="xsd:string"/>
+                    <xsd:element name="remision" type="xsd:string"/>
+                    <xsd:element name="total" type="xsd:string"/>
+                    <xsd:element name="no_referencia" type="xsd:string"/>
+                    <xsd:element name="no_autorizacion" type="xsd:string"/>
                 </xsd:sequence>
             </xsd:complexType>
 
             <xsd:complexType name="RemisionPagoInputListType">
                 <xsd:sequence>
-                    <xsd:element name="Remision" type="tns:RemisionPagoInputType" minOccurs="0" maxOccurs="unbounded"/>
+                    <xsd:element name="Remision" type="tns:RemisionPagoInputType" minOccurs="1" maxOccurs="unbounded"/>
                 </xsd:sequence>
             </xsd:complexType>
 
@@ -175,8 +175,7 @@
             <xsd:element name="pago">
                 <xsd:complexType>
                     <xsd:sequence>
-                        <xsd:element name="Remisiones" type="tns:RemisionPagoInputListType" minOccurs="0"/>
-                        <xsd:element name="Remision" type="tns:RemisionPagoInputType" minOccurs="0" maxOccurs="unbounded"/>
+                        <xsd:element name="Remisiones" type="tns:RemisionPagoInputListType"/>
                     </xsd:sequence>
                 </xsd:complexType>
             </xsd:element>
@@ -198,7 +197,7 @@
                 <xsd:complexType>
                     <xsd:sequence>
                         <xsd:element name="Documento" type="xsd:string"/>
-                        <xsd:element name="Message" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="Message" type="xsd:string"/>
                     </xsd:sequence>
                 </xsd:complexType>
             </xsd:element>

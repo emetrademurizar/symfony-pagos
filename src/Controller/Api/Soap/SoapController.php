@@ -330,6 +330,7 @@ class SoapController extends AbstractController
                         $out .= '<ITEM>'
                             . '<SERIE>' . htmlspecialchars((string)($p['serie'] ?? '')) . '</SERIE>'
                             . '<REMISION>' . htmlspecialchars((string)($p['remision'] ?? '')) . '</REMISION>'
+                            .'<DOCUMENTO>' . htmlspecialchars((string)$p['documento'] ?? '') . '</DOCUMENTO>'
                             . '<CODIGO>' . htmlspecialchars((string)($p['codigo'] ?? '')) . '</CODIGO>'
                             . '<MENSAJE>' . htmlspecialchars((string)($p['mensaje'] ?? '')) . '</MENSAJE>'
                             . '</ITEM>';
