@@ -438,7 +438,7 @@ class TotalPagoService
                     $e = oci_error($stmtPago) ?: oci_error($oci);
                     oci_free_statement($stmtPago);
 
-                    $mensaje = $e['message'] ?? 'TRANSACCION NO PROCESADA 2';
+                    $mensaje = $e['message'] ?? 'TRANSACCION NO PROCESADA';
 
                     $this->bitacora->bitacora(
                         ip: $ip,
@@ -525,7 +525,7 @@ class TotalPagoService
                 } else {
                     $codigoRespuesta = '007';
                     $estatus = 'ERROR';
-                    $mensajeRespuesta = 'TRANSACCION NO PROCESADA 3';
+                    $mensajeRespuesta = 'TRANSACCION NO PROCESADA';
 
                     $noProcesadas[] = [
                         'serie' => $serie,
@@ -601,7 +601,7 @@ class TotalPagoService
                 'total_pago' => [
                     'doc' => '',
                     'cod' => '007',
-                    'mensaje' => 'TRANSACCION NO PROCESADA 7: ' . ($e->getMessage() ?? ''),
+                    'mensaje' => 'TRANSACCION NO PROCESADA: ' . ($e->getMessage() ?? ''),
                 ],
             ];
         }

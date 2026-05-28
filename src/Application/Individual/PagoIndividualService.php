@@ -295,7 +295,7 @@ class PagoIndividualService
                         'serie' => $serie,
                         'remision' => $remision,
                         'codigo' => '004',
-                        'mensaje' => 'TRANSACCION NO PROCESADA 2',
+                        'mensaje' => 'TRANSACCION NO PROCESADA',
                     ];
 
                     $detener = true;
@@ -372,7 +372,7 @@ class PagoIndividualService
                     $e = oci_error($stmtPago) ?: oci_error($oci);
                     oci_free_statement($stmtPago);
 
-                    $mensaje = $e['message'] ?? 'TRANSACCION NO PROCESADA 3';
+                    $mensaje = $e['message'] ?? 'TRANSACCION NO PROCESADA';
 
                     $this->bitacora->bitacora(
                         ip: $ip,
@@ -457,7 +457,7 @@ class PagoIndividualService
                 } else {
                     $codigoRespuesta = '004';
                     $estatus = 'ERROR';
-                    $mensajeRespuesta = 'TRANSACCION NO PROCESADA 5';
+                    $mensajeRespuesta = 'TRANSACCION NO PROCESADA';
 
                     $noProcesadas[] = [
                         'serie' => $serie,
@@ -520,7 +520,7 @@ class PagoIndividualService
                     'remision' => [
                         'doc' => '',
                         'cod' => '004',
-                        'mensaje' => 'TRANSACCION NO PROCESADA 6',
+                        'mensaje' => 'TRANSACCION NO PROCESADA',
                     ],
                     'procesadas' => $procesadas,
                     'no_procesadas' => $noProcesadas,
@@ -555,7 +555,7 @@ class PagoIndividualService
                 'remision' => [
                     'doc' => '',
                     'cod' => '004',
-                    'mensaje' => 'TRANSACCION NO PROCESADA 7: ' . ($e->getMessage() ?? ''),
+                    'mensaje' => 'TRANSACCION NO PROCESADA: ' . ($e->getMessage() ?? ''),
                 ],
             ];
         }
