@@ -470,7 +470,6 @@ class PagoIndividualService
                 }
 
 
-                // Preparar valores seguros para bitácora
                 $docBitacora = '';
                 $comentarioBitacora = $mensajeRespuesta;
 
@@ -489,7 +488,6 @@ class PagoIndividualService
                         : $mensajeRespuesta;
                 }
 
-                // Bitácora siempre
                 $this->bitacora->bitacora(
                     ip: $ip,
                     usuario: $usuario,

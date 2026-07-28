@@ -456,10 +456,8 @@ class IndividualController extends AbstractController
         $message     = (string)($data['message'] ?? '');
         $ip         = (string)($request->getClientIp() ?? '');
 
-        // Llamar al servicio de reversión
         $result = $service->execute($documento, $subject, $message, $ip);
 
-        // Enviar el resultado, dependiendo de si hubo error o no
         $httpStatus = isset($result['error']) ? 400 : 200;
 
         $functionalCode = $result['error']['cod'] ?? '000';
@@ -605,15 +603,12 @@ class IndividualController extends AbstractController
 
         $subject = (string) $authenticatedClient->bankClientId;
 
-        // Obtener los 4 parámetros desde el body
         $tipoPlaca = (string) ($data['tipo_placa'] ?? '');
         $placa     = (string) ($data['placa'] ?? '');
         $ip         = (string)($request->getClientIp() ?? '');
 
-        // Llamar al servicio de total consulta
         $result = $service->execute($tipoPlaca, $placa, $subject, $ip);
 
-        // Devolver la respuesta
         $httpStatus = isset($result['error']) ? 400 : 200;
 
         $functionalCode = $result['error']['cod'] ?? '000';

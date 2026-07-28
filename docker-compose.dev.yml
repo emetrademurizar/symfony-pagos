@@ -1,0 +1,17 @@
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: symfony-pagos:dev
+    container_name: php82
+    volumes:
+      - ./:/app
+    working_dir: /app
+    env_file:
+      - .env
+    environment:
+      APP_ENV: dev
+    command: symfony serve --no-tls --port=8000 --allow-http --allow-all-ip
+    ports:
+      - "8000:8000"
