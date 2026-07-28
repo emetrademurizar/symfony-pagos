@@ -44,8 +44,10 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 RUN wget https://get.symfony.com/cli/installer -O - | bash \
     && mv /root/.symfony*/bin/symfony /usr/local/bin/symfony
 
+ENV APP_PORT=8000
+
 WORKDIR /app
 
-EXPOSE 8000
+EXPOSE ${APP_PORT}
 
-CMD ["symfony", "server:start", "--no-tls", "--port=8000", "--allow-http", "--allow-all-ip"]
+CMD ["sh", "-c", "symfony server:start --no-tls --port=${APP_PORT} --allow-http --allow-all-ip"]

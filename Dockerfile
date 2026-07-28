@@ -62,9 +62,10 @@ FROM base AS runner
 
 ENV APP_ENV=prod \
     APP_DEBUG=0 \
+    APP_PORT=8000 \
     COMPOSER_ALLOW_SUPERUSER=1
 
-COPY docker/nginx/default.conf /etc/nginx/sites-available/default
+COPY docker/nginx/default.conf /etc/nginx/templates/default.conf.template
 COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 COPY docker/php/app.ini /usr/local/etc/php/conf.d/app.ini
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
@@ -83,10 +84,10 @@ RUN rm -rf oracle docker \
     && chown -R www-data:www-data /app \
     && chmod -R ug+rwX var config/jwt
 
-EXPOSE 8000
+EXPOSE ${APP_PORT}
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-    CMD curl -fsS http://127.0.0.1:8000/ > /dev/null || exit 1
+    CMD curl -fsS "http://127.0.0.1:${APP_PORT}/" > /dev/null || exit 1
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]

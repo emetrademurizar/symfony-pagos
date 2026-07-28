@@ -1,6 +1,12 @@
 #!/bin/sh
 set -e
 
+APP_PORT="${APP_PORT:-8000}"
+
+sed "s/__APP_PORT__/${APP_PORT}/g" \
+    /etc/nginx/templates/default.conf.template \
+    > /etc/nginx/sites-available/default
+
 cd /app
 
 mkdir -p var/cache var/log config/jwt

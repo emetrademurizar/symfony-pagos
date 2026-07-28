@@ -6,12 +6,13 @@ services:
       network: host
     image: symfony-pagos:prod
     ports:
-      - "8000:8000"
+      - "${APP_PORT:-8000}:${APP_PORT:-8000}"
     env_file:
       - .env
     environment:
       APP_ENV: prod
       APP_DEBUG: "0"
+      APP_PORT: ${APP_PORT:-8000}
     volumes:
       - jwt_keys:/app/config/jwt
       - app_var:/app/var
@@ -22,7 +23,7 @@ services:
           "CMD",
           "curl",
           "-fsS",
-          "http://127.0.0.1:8000/",
+          "http://127.0.0.1:${APP_PORT:-8000}/",
         ]
       interval: 30s
       timeout: 5s
