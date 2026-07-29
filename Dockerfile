@@ -68,6 +68,7 @@ ENV APP_ENV=prod \
 COPY docker/nginx/default.conf /etc/nginx/templates/default.conf.template
 COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 COPY docker/php/app.ini /usr/local/etc/php/conf.d/app.ini
+COPY docker/php/zz-docker-env.conf /usr/local/etc/php-fpm.d/zz-docker-env.conf
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN rm -f /etc/nginx/sites-enabled/default \
